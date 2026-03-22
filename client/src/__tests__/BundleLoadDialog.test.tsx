@@ -71,6 +71,9 @@ describe("BundleLoadDialog", () => {
   it("open=trueのときダイアログが表示される", async () => {
     render(<BundleLoadDialog {...defaultProps} />);
     expect(screen.getByText("全体を呼び出し")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockFetchBundles).toHaveBeenCalled();
+    });
   });
 
   it("バンドル一覧が表示される", async () => {
@@ -105,5 +108,33 @@ describe("BundleLoadDialog", () => {
 
     await user.click(screen.getByText("閉じる"));
     expect(defaultProps.onClose).toHaveBeenCalled();
+  });
+
+  it("読み込みエラー時にエラーメッセージが表示される", async () => {
+    mockFetchBundles.mockRejectedValue(new Error("Network error"));
+    render(<BundleLoadDialog {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("読み込みに失敗しました")).toBeInTheDocument();
+    });
+  });
+
+  it("バンドル選択エラー時にエラーメッセージが表示される", async () => {
+    const user = userEvent.setup();
+    mockFetchBundle.mockRejectedValue(new Error("Not found"));
+    render(<BundleLoadDialog {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("風景セット")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("bundle-load-item-1"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("バンドルの読み込みに失敗しました"),
+      ).toBeInTheDocument();
+    });
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 });

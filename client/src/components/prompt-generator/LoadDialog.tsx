@@ -11,12 +11,14 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const generationRef = useRef(0);
 
   const loadPrompts = useCallback(async (q: string) => {
     const gen = ++generationRef.current;
     setLoading(true);
+    setError("");
     try {
       const res = await fetchPrompts(q, 20);
       if (gen === generationRef.current) {
@@ -25,6 +27,7 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
     } catch {
       if (gen === generationRef.current) {
         setResults([]);
+        setError("読み込みに失敗しました");
       }
     } finally {
       if (gen === generationRef.current) {
@@ -37,6 +40,7 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
     if (!open) {
       setQuery("");
       setResults([]);
+      setError("");
       generationRef.current++;
       return;
     }
@@ -94,7 +98,10 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
               読み込み中...
             </p>
           )}
-          {!loading && results.length === 0 && (
+          {!loading && error && (
+            <p className="text-sm text-red-500 text-center py-4">{error}</p>
+          )}
+          {!loading && !error && results.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
               {query ? "見つかりませんでした" : "保存されたプロンプトはありません"}
             </p>

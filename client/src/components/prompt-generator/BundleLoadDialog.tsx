@@ -20,12 +20,15 @@ export function BundleLoadDialog({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const generationRef = useRef(0);
+  const closedRef = useRef(false);
 
   const loadBundles = useCallback(async (q: string) => {
     const gen = ++generationRef.current;
     setLoading(true);
+    setError("");
     try {
       const res = await fetchBundles(q, 20);
       if (gen === generationRef.current) {
@@ -34,6 +37,7 @@ export function BundleLoadDialog({
     } catch {
       if (gen === generationRef.current) {
         setResults([]);
+        setError("読み込みに失敗しました");
       }
     } finally {
       if (gen === generationRef.current) {
@@ -46,9 +50,12 @@ export function BundleLoadDialog({
     if (!open) {
       setQuery("");
       setResults([]);
+      setError("");
+      closedRef.current = true;
       generationRef.current++;
       return;
     }
+    closedRef.current = false;
     loadBundles("");
   }, [open, loadBundles]);
 
@@ -70,12 +77,15 @@ export function BundleLoadDialog({
   if (!open) return null;
 
   const handleSelect = async (bundlePreview: Bundle) => {
+    setError("");
     try {
       const full = await fetchBundle(bundlePreview.id);
+      if (closedRef.current) return;
       onSelect(full);
       onClose();
     } catch {
-      // エラー時はダイアログ開いたまま
+      if (closedRef.current) return;
+      setError("バンドルの読み込みに失敗しました");
     }
   };
 
@@ -108,7 +118,10 @@ export function BundleLoadDialog({
               読み込み中...
             </p>
           )}
-          {!loading && results.length === 0 && (
+          {!loading && error && (
+            <p className="text-sm text-red-500 text-center py-4">{error}</p>
+          )}
+          {!loading && !error && results.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
               {query
                 ? "見つかりませんでした"

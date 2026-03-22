@@ -63,6 +63,9 @@ describe("LoadDialog", () => {
     render(<LoadDialog {...defaultProps} />);
     expect(screen.getByText("プロンプトを呼び出し")).toBeInTheDocument();
     expect(screen.getByTestId("load-search-input")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockFetchPrompts).toHaveBeenCalled();
+    });
   });
 
   it("保存済みプロンプトが一覧表示される", async () => {
@@ -122,5 +125,14 @@ describe("LoadDialog", () => {
     const images = document.querySelectorAll("img");
     expect(images.length).toBeGreaterThanOrEqual(1);
     expect(images[0].getAttribute("src")).toBe("/api/images/test.jpg");
+  });
+
+  it("読み込みエラー時にエラーメッセージが表示される", async () => {
+    mockFetchPrompts.mockRejectedValue(new Error("Network error"));
+    render(<LoadDialog {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("読み込みに失敗しました")).toBeInTheDocument();
+    });
   });
 });
