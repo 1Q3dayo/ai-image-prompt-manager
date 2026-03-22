@@ -11,6 +11,8 @@ interface InputSetProps {
   ) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, direction: "up" | "down") => void;
+  onSave: (id: string) => void;
+  onLoad: (id: string) => void;
 }
 
 export function InputSet({
@@ -20,6 +22,8 @@ export function InputSet({
   onUpdate,
   onRemove,
   onMove,
+  onSave,
+  onLoad,
 }: InputSetProps) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white" data-testid={`input-set-${index}`}>
@@ -99,6 +103,24 @@ export function InputSet({
           />
           <span className="text-sm text-gray-700">BREAK</span>
         </label>
+
+        <div className="flex gap-2 pt-2 border-t border-gray-100">
+          <button
+            onClick={() => onSave(set.id)}
+            disabled={!set.title || !set.prompt}
+            className="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-30"
+            aria-label={`セット${index + 1}を保存`}
+          >
+            保存
+          </button>
+          <button
+            onClick={() => onLoad(set.id)}
+            className="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            aria-label={`セット${index + 1}に呼び出し`}
+          >
+            呼び出し
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,8 @@ interface InputColumnProps {
   onMove: (id: string, direction: "up" | "down") => void;
   onAdd: () => void;
   onClear: () => void;
+  onSave: (id: string) => void;
+  onLoad: (id: string) => void;
 }
 
 export function InputColumn({
@@ -21,6 +23,8 @@ export function InputColumn({
   onMove,
   onAdd,
   onClear,
+  onSave,
+  onLoad,
 }: InputColumnProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -52,6 +56,8 @@ export function InputColumn({
             onUpdate={onUpdate}
             onRemove={onRemove}
             onMove={onMove}
+            onSave={onSave}
+            onLoad={onLoad}
           />
         ))}
       </div>

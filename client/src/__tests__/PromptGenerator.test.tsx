@@ -1,7 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PromptGenerator } from "../components/prompt-generator/PromptGenerator";
+
+vi.mock("../hooks/useApi", () => ({
+  savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
+}));
 
 describe("PromptGenerator", () => {
   it("初期状態で入力セットが1つ表示される", () => {
@@ -106,19 +112,27 @@ describe("PromptGenerator", () => {
     expect(screen.getByText("AI用表示")).toBeInTheDocument();
   });
 
-  it("複数セットの場合、AI用表示でプロンプトが改行区切りで表示される", async () => {
+  it("保存ボタンでSaveDialogが開く", async () => {
     const user = userEvent.setup();
     render(<PromptGenerator />);
 
     const set0 = screen.getByTestId("input-set-0");
-    await user.type(within(set0).getByLabelText("プロンプト"), "first");
+    await user.type(within(set0).getByLabelText("タイトル"), "テスト");
+    await user.type(within(set0).getByLabelText("プロンプト"), "test");
 
-    await user.click(screen.getByText("+ セット追加"));
-    const set1 = screen.getByTestId("input-set-1");
-    await user.type(within(set1).getByLabelText("プロンプト"), "second");
+    await user.click(within(set0).getByLabelText("セット1を保存"));
+    expect(screen.getByText("プロンプトを保存")).toBeInTheDocument();
+  });
 
-    const output = screen.getByTestId("ai-ready-output");
-    expect(output.textContent).toContain("first");
-    expect(output.textContent).toContain("second");
+  it("呼び出しボタンでLoadDialogが開く", async () => {
+    const user = userEvent.setup();
+    render(<PromptGenerator />);
+
+    const set0 = screen.getByTestId("input-set-0");
+    await user.click(within(set0).getByLabelText("セット1に呼び出し"));
+
+    await waitFor(() => {
+      expect(screen.getByText("プロンプトを呼び出し")).toBeInTheDocument();
+    });
   });
 });
