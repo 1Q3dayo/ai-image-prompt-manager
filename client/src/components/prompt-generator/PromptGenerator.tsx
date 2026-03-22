@@ -5,7 +5,10 @@ import { HumanReadableColumn } from "./HumanReadableColumn";
 import { AiReadyColumn } from "./AiReadyColumn";
 import { SaveDialog } from "./SaveDialog";
 import { LoadDialog } from "./LoadDialog";
-import type { Prompt } from "../../hooks/useApi";
+import { BundleSaveDialog } from "./BundleSaveDialog";
+import { BundleLoadDialog } from "./BundleLoadDialog";
+import { FullSetControls } from "./FullSetControls";
+import type { Prompt, Bundle } from "../../hooks/useApi";
 
 export function PromptGenerator() {
   const {
@@ -15,15 +18,17 @@ export function PromptGenerator() {
     updateSet,
     moveSet,
     clearSets,
+    loadSets,
     humanReadableText,
     aiReadyText,
   } = usePromptSets();
 
   const [saveTargetId, setSaveTargetId] = useState<string | null>(null);
   const [loadTargetId, setLoadTargetId] = useState<string | null>(null);
+  const [bundleSaveOpen, setBundleSaveOpen] = useState(false);
+  const [bundleLoadOpen, setBundleLoadOpen] = useState(false);
 
   const saveTarget = sets.find((s) => s.id === saveTargetId);
-  const loadTarget = sets.find((s) => s.id === loadTargetId);
 
   const handleSave = useCallback((id: string) => {
     setSaveTargetId(id);
@@ -35,16 +40,40 @@ export function PromptGenerator() {
 
   const handleLoadSelect = useCallback(
     (prompt: Prompt) => {
-      if (!loadTarget) return;
-      updateSet(loadTarget.id, "title", prompt.title);
-      updateSet(loadTarget.id, "prompt", prompt.prompt);
-      updateSet(loadTarget.id, "hasBreak", prompt.has_break === 1);
+      const target = sets.find((s) => s.id === loadTargetId);
+      if (!target) return;
+      updateSet(target.id, "title", prompt.title);
+      updateSet(target.id, "prompt", prompt.prompt);
+      updateSet(target.id, "hasBreak", prompt.has_break === 1);
     },
-    [loadTarget, updateSet],
+    [loadTargetId, sets, updateSet],
   );
+
+  const handleBundleLoadSelect = useCallback(
+    (bundle: Bundle) => {
+      const newSets = (bundle.items ?? []).map((item) => ({
+        id: crypto.randomUUID(),
+        title: item.title,
+        prompt: item.prompt,
+        hasBreak: item.has_break === 1,
+      }));
+      loadSets(newSets);
+    },
+    [loadSets],
+  );
+
+  const hasContent = sets.some((s) => s.prompt);
 
   return (
     <>
+      <div className="mb-4 flex justify-end">
+        <FullSetControls
+          onSaveAll={() => setBundleSaveOpen(true)}
+          onLoadAll={() => setBundleLoadOpen(true)}
+          hasContent={hasContent}
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1.5fr_1.5fr] gap-6">
         <InputColumn
           sets={sets}
@@ -72,6 +101,18 @@ export function PromptGenerator() {
         open={loadTargetId !== null}
         onClose={() => setLoadTargetId(null)}
         onSelect={handleLoadSelect}
+      />
+
+      <BundleSaveDialog
+        open={bundleSaveOpen}
+        onClose={() => setBundleSaveOpen(false)}
+        sets={sets}
+      />
+
+      <BundleLoadDialog
+        open={bundleLoadOpen}
+        onClose={() => setBundleLoadOpen(false)}
+        onSelect={handleBundleLoadSelect}
       />
     </>
   );

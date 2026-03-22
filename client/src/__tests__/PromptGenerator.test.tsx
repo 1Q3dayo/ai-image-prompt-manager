@@ -5,7 +5,10 @@ import { PromptGenerator } from "../components/prompt-generator/PromptGenerator"
 
 vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchBundles: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchBundle: vi.fn().mockResolvedValue({ id: 1, items: [] }),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
 }));
 
@@ -133,6 +136,34 @@ describe("PromptGenerator", () => {
 
     await waitFor(() => {
       expect(screen.getByText("プロンプトを呼び出し")).toBeInTheDocument();
+    });
+  });
+
+  it("全体保存ボタンと全体呼び出しボタンが表示される", () => {
+    render(<PromptGenerator />);
+    expect(screen.getByText("全体保存")).toBeInTheDocument();
+    expect(screen.getByText("全体呼び出し")).toBeInTheDocument();
+  });
+
+  it("全体保存ボタンでBundleSaveDialogが開く", async () => {
+    const user = userEvent.setup();
+    render(<PromptGenerator />);
+
+    const set0 = screen.getByTestId("input-set-0");
+    await user.type(within(set0).getByLabelText("プロンプト"), "test");
+
+    await user.click(screen.getByText("全体保存"));
+    expect(screen.getByText("全体を保存")).toBeInTheDocument();
+  });
+
+  it("全体呼び出しボタンでBundleLoadDialogが開く", async () => {
+    const user = userEvent.setup();
+    render(<PromptGenerator />);
+
+    await user.click(screen.getByText("全体呼び出し"));
+
+    await waitFor(() => {
+      expect(screen.getByText("全体を呼び出し")).toBeInTheDocument();
     });
   });
 });

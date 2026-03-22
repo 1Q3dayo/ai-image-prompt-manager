@@ -1,24 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchPrompts, getImageUrl, type Prompt } from "../../hooks/useApi";
+import {
+  fetchBundles,
+  fetchBundle,
+  getImageUrl,
+  type Bundle,
+} from "../../hooks/useApi";
 
-interface LoadDialogProps {
+interface BundleLoadDialogProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (prompt: Prompt) => void;
+  onSelect: (bundle: Bundle) => void;
 }
 
-export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
+export function BundleLoadDialog({
+  open,
+  onClose,
+  onSelect,
+}: BundleLoadDialogProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Prompt[]>([]);
+  const [results, setResults] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const generationRef = useRef(0);
 
-  const loadPrompts = useCallback(async (q: string) => {
+  const loadBundles = useCallback(async (q: string) => {
     const gen = ++generationRef.current;
     setLoading(true);
     try {
-      const res = await fetchPrompts(q, 20);
+      const res = await fetchBundles(q, 20);
       if (gen === generationRef.current) {
         setResults(res.data);
       }
@@ -40,42 +49,47 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
       generationRef.current++;
       return;
     }
-    loadPrompts("");
-  }, [open, loadPrompts]);
+    loadBundles("");
+  }, [open, loadBundles]);
 
   useEffect(() => {
     if (!open) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query === "") {
-      loadPrompts("");
+      loadBundles("");
       return;
     }
     debounceRef.current = setTimeout(() => {
-      loadPrompts(query);
+      loadBundles(query);
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open, loadPrompts]);
+  }, [query, open, loadBundles]);
 
   if (!open) return null;
 
-  const handleSelect = (prompt: Prompt) => {
-    onSelect(prompt);
-    onClose();
+  const handleSelect = async (bundlePreview: Bundle) => {
+    try {
+      const full = await fetchBundle(bundlePreview.id);
+      onSelect(full);
+      onClose();
+    } catch {
+      // エラー時はダイアログ開いたまま
+    }
   };
 
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       onClick={onClose}
-      data-testid="load-dialog-overlay"
+      data-testid="bundle-load-dialog-overlay"
     >
       <div
         className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold mb-4">プロンプトを呼び出し</h3>
+        <h3 className="text-lg font-semibold mb-4">全体を呼び出し</h3>
 
         <div className="mb-4">
           <input
@@ -84,7 +98,7 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="検索..."
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            data-testid="load-search-input"
+            data-testid="bundle-load-search-input"
           />
         </div>
 
@@ -96,33 +110,32 @@ export function LoadDialog({ open, onClose, onSelect }: LoadDialogProps) {
           )}
           {!loading && results.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
-              {query ? "見つかりませんでした" : "保存されたプロンプトはありません"}
+              {query
+                ? "見つかりませんでした"
+                : "保存されたバンドルはありません"}
             </p>
           )}
-          {results.map((prompt) => (
+          {results.map((bundle) => (
             <button
-              key={prompt.id}
-              onClick={() => handleSelect(prompt)}
+              key={bundle.id}
+              onClick={() => handleSelect(bundle)}
               className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
-              data-testid={`load-item-${prompt.id}`}
+              data-testid={`bundle-load-item-${bundle.id}`}
             >
               <div className="flex gap-3">
-                {prompt.image_path && (
+                {bundle.image_path && (
                   <img
-                    src={getImageUrl(prompt.image_path)}
+                    src={getImageUrl(bundle.image_path)}
                     alt=""
                     className="w-12 h-12 object-cover rounded"
                   />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {prompt.title}
+                    {bundle.title}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {prompt.description}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate mt-1">
-                    {prompt.prompt}
+                    {bundle.description}
                   </p>
                 </div>
               </div>
