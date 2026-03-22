@@ -10,3 +10,10 @@ export const TABS: Tab[] = [
   { id: "manager", label: "プロンプトマネージャ" },
   { id: "admin", label: "管理" },
 ];
+
+export interface PromptSet {
+  id: string;
+  title: string;
+  prompt: string;
+  hasBreak: boolean;
+}
