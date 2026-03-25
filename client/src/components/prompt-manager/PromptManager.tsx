@@ -5,6 +5,8 @@ import { BundleList } from "./BundleList";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { PromptEditDialog } from "./PromptEditDialog";
 import { BundleEditDialog } from "./BundleEditDialog";
+import { ViewModeToolbar } from "./ViewModeToolbar";
+import type { ViewMode, ImageSize } from "./types";
 
 type Segment = "prompts" | "bundles";
 
@@ -27,6 +29,8 @@ export function PromptManager() {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [imageSize, setImageSize] = useState<ImageSize>("sm");
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
@@ -55,33 +59,42 @@ export function PromptManager() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div
-          className="inline-flex rounded-lg border border-gray-300 p-0.5"
-          data-testid="segment-control"
-        >
-          <button
-            onClick={() => handleSegmentChange("prompts")}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              segment === "prompts"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-            data-testid="segment-prompts"
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div
+            className="inline-flex rounded-lg border border-gray-300 p-0.5"
+            data-testid="segment-control"
           >
-            プロンプト
-          </button>
-          <button
-            onClick={() => handleSegmentChange("bundles")}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              segment === "bundles"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-            data-testid="segment-bundles"
-          >
-            バンドル
-          </button>
+            <button
+              onClick={() => handleSegmentChange("prompts")}
+              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+                segment === "prompts"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              data-testid="segment-prompts"
+            >
+              プロンプト
+            </button>
+            <button
+              onClick={() => handleSegmentChange("bundles")}
+              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+                segment === "bundles"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              data-testid="segment-bundles"
+            >
+              バンドル
+            </button>
+          </div>
+
+          <ViewModeToolbar
+            viewMode={viewMode}
+            imageSize={imageSize}
+            onViewModeChange={setViewMode}
+            onImageSizeChange={setImageSize}
+          />
         </div>
 
         <input
@@ -98,6 +111,8 @@ export function PromptManager() {
         <PromptList
           query={debouncedQuery}
           refreshKey={refreshKey}
+          viewMode={viewMode}
+          imageSize={imageSize}
           onEdit={(id) => setEditTarget({ type: "prompt", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "prompt", id, title })}
         />
@@ -105,6 +120,8 @@ export function PromptManager() {
         <BundleList
           query={debouncedQuery}
           refreshKey={refreshKey}
+          viewMode={viewMode}
+          imageSize={imageSize}
           onEdit={(id) => setEditTarget({ type: "bundle", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "bundle", id, title })}
         />
