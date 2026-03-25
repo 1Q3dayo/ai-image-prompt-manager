@@ -181,3 +181,77 @@ export async function deleteBundle(id: number): Promise<void> {
 export function getImageUrl(imagePath: string): string {
   return `${BASE_URL}/images/${imagePath}`;
 }
+
+// Admin API
+
+export interface AdminStats {
+  promptCount: number;
+  bundleCount: number;
+  imageCount: number;
+  storageBytes: {
+    images: number;
+    database: number;
+    total: number;
+  };
+  lastUpdatedAt: string | null;
+}
+
+export async function fetchAdminStats(): Promise<AdminStats> {
+  const res = await fetch(`${BASE_URL}/admin/stats`);
+  if (!res.ok) throw new Error("統計情報の取得に失敗しました");
+  return res.json();
+}
+
+export async function exportJson(includeImages: boolean): Promise<Blob> {
+  const res = await fetch(
+    `${BASE_URL}/admin/export/json?includeImages=${includeImages}`,
+  );
+  if (!res.ok) throw new Error("JSONエクスポートに失敗しました");
+  return res.blob();
+}
+
+export async function exportDb(): Promise<Blob> {
+  const res = await fetch(`${BASE_URL}/admin/export/db`);
+  if (!res.ok) throw new Error("DBエクスポートに失敗しました");
+  return res.blob();
+}
+
+export interface ImportResult {
+  imported: {
+    prompts: number;
+    bundles: number;
+    images: number;
+  };
+}
+
+export async function importJson(
+  file: File,
+  mode: "replace" | "append",
+): Promise<ImportResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("mode", mode);
+  const res = await fetch(`${BASE_URL}/admin/import/json`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "JSONインポートに失敗しました");
+  }
+  return res.json();
+}
+
+export async function importDb(file: File): Promise<{ status: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE_URL}/admin/import/db`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "DBリストアに失敗しました");
+  }
+  return res.json();
+}

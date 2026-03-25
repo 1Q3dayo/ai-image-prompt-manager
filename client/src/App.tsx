@@ -3,6 +3,7 @@ import { TabNavigation } from "./components/layout/TabNavigation";
 import { TabPanel } from "./components/layout/TabPanel";
 import { PromptGenerator } from "./components/prompt-generator/PromptGenerator";
 import { PromptManager } from "./components/prompt-manager/PromptManager";
+import { AdminPanel } from "./components/admin/AdminPanel";
 import type { TabId } from "./types";
 
 function App() {
@@ -34,7 +35,7 @@ function App() {
 
         <TabPanel tabId="admin" active={activeTab === "admin"}>
           <div data-testid="admin-panel">
-            <p className="text-gray-500">管理画面（実装予定）</p>
+            <AdminPanel />
           </div>
         </TabPanel>
       </main>

@@ -7,18 +7,23 @@ import { createDatabase } from "./db/connection.js";
 import { initializeSchema } from "./db/schema.js";
 import { createPromptsRouter } from "./routes/prompts.js";
 import { createBundlesRouter } from "./routes/bundles.js";
+import { createAdminRouter } from "./routes/admin.js";
 import type { DatabaseSync } from "node:sqlite";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function createApp(db?: DatabaseSync) {
+export interface DbRef {
+  current: DatabaseSync;
+}
+
+export function createApp(db?: DatabaseSync, dataDirOverride?: string) {
   const app = express();
 
   app.use(cors());
   app.use(express.json());
 
-  const dataDir = path.resolve(__dirname, "../../data");
+  const dataDir = dataDirOverride ?? path.resolve(__dirname, "../../data");
   const imagesDir = path.join(dataDir, "images");
   fs.mkdirSync(imagesDir, { recursive: true });
 
@@ -27,12 +32,19 @@ export function createApp(db?: DatabaseSync) {
   const database = db ?? createDatabase();
   initializeSchema(database);
 
+  const dbRef: DbRef = { current: database };
+  const getDb = () => dbRef.current;
+  const setDb = (newDb: DatabaseSync) => {
+    dbRef.current = newDb;
+  };
+
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
   });
 
-  app.use("/api/prompts", createPromptsRouter(database));
-  app.use("/api/bundles", createBundlesRouter(database));
+  app.use("/api/prompts", createPromptsRouter(getDb));
+  app.use("/api/bundles", createBundlesRouter(getDb));
+  app.use("/api/admin", createAdminRouter(getDb, setDb, dataDir));
 
   return app;
 }
