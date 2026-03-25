@@ -6,6 +6,17 @@ import { PromptManager } from "../components/prompt-manager/PromptManager";
 vi.mock("../hooks/useApi", () => ({
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
   fetchBundles: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchPrompt: vi.fn().mockResolvedValue({
+    id: 1, title: "t", prompt: "p", has_break: 0,
+    description: "d", image_path: null,
+    created_at: "2024-01-01", updated_at: "2024-01-01",
+  }),
+  updatePrompt: vi.fn().mockResolvedValue({}),
+  fetchBundle: vi.fn().mockResolvedValue({
+    id: 1, title: "b", description: "d", image_path: null,
+    items: [], created_at: "2024-01-01", updated_at: "2024-01-01",
+  }),
+  updateBundle: vi.fn().mockResolvedValue({}),
   deletePrompt: vi.fn().mockResolvedValue(undefined),
   deleteBundle: vi.fn().mockResolvedValue(undefined),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),

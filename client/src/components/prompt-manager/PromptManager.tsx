@@ -3,6 +3,8 @@ import { deletePrompt, deleteBundle } from "../../hooks/useApi";
 import { PromptList } from "./PromptList";
 import { BundleList } from "./BundleList";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+import { PromptEditDialog } from "./PromptEditDialog";
+import { BundleEditDialog } from "./BundleEditDialog";
 
 type Segment = "prompts" | "bundles";
 
@@ -108,9 +110,25 @@ export function PromptManager() {
         />
       )}
 
-      {/* 編集ダイアログ（後のステップで実装） */}
-      {editTarget !== null && (
-        <div data-testid="edit-dialog-placeholder" />
+      {editTarget?.type === "prompt" && (
+        <PromptEditDialog
+          promptId={editTarget.id}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+      {editTarget?.type === "bundle" && (
+        <BundleEditDialog
+          bundleId={editTarget.id}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
       )}
       {deleteTarget !== null && (
         <DeleteConfirmDialog
