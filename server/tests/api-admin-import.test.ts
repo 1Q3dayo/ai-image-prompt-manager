@@ -6,6 +6,7 @@ import type { DatabaseSync } from "node:sqlite";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { createTestPngBuffer, isAvifFile } from "./test-image.js";
 
 describe("Admin Import API", () => {
   let db: DatabaseSync;
@@ -123,7 +124,7 @@ describe("Admin Import API", () => {
     });
 
     it("base64画像が復元される", async () => {
-      const pngData = Buffer.from("fake-png-data");
+      const pngData = await createTestPngBuffer();
       const base64 = `data:image/png;base64,${pngData.toString("base64")}`;
 
       const exportData = {
@@ -150,8 +151,9 @@ describe("Admin Import API", () => {
       expect(res.body.imported.images).toBe(1);
 
       const imagesDir = path.join(tmpDir, "images");
-      const files = fs.readdirSync(imagesDir).filter((f) => f.endsWith(".png"));
+      const files = fs.readdirSync(imagesDir).filter((f) => f.endsWith(".avif"));
       expect(files.length).toBeGreaterThanOrEqual(1);
+      expect(isAvifFile(path.join(imagesDir, files[0]))).toBe(true);
     });
 
     it("ファイルなしでエラーになる", async () => {

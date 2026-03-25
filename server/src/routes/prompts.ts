@@ -1,6 +1,11 @@
 import { Router } from "express";
 import type { DatabaseSync } from "node:sqlite";
-import { upload, deleteImage, cleanupUploadedFile } from "../middleware/upload.js";
+import {
+  upload,
+  deleteImage,
+  cleanupUploadedFile,
+  saveUploadedImage,
+} from "../middleware/upload.js";
 
 export function createPromptsRouter(getDb: () => DatabaseSync): Router {
   const router = Router();
@@ -42,7 +47,7 @@ export function createPromptsRouter(getDb: () => DatabaseSync): Router {
     res.json(row);
   });
 
-  router.post("/", upload.single("image"), (req, res) => {
+  router.post("/", upload.single("image"), async (req, res) => {
     const db = getDb();
     const { title, prompt, has_break, description } = req.body;
     if (!title || !prompt || !description) {
@@ -53,27 +58,46 @@ export function createPromptsRouter(getDb: () => DatabaseSync): Router {
       return;
     }
 
-    const imagePath = req.file ? req.file.filename : null;
-    const result = db
-      .prepare(
-        `INSERT INTO prompts (title, prompt, has_break, description, image_path)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      .run(
-        title,
-        prompt,
-        has_break === "true" || has_break === "1" ? 1 : 0,
-        description,
-        imagePath,
-      );
+    let imagePath: string | null = null;
+    if (req.file) {
+      try {
+        imagePath = await saveUploadedImage(req.file, req);
+      } catch {
+        res.status(400).json({ error: "画像の変換に失敗しました" });
+        return;
+      }
+    }
 
-    const row = db
-      .prepare("SELECT * FROM prompts WHERE id = ?")
-      .get(result.lastInsertRowid);
-    res.status(201).json(row);
+    try {
+      const result = db
+        .prepare(
+          `INSERT INTO prompts (title, prompt, has_break, description, image_path)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          title,
+          prompt,
+          has_break === "true" || has_break === "1" ? 1 : 0,
+          description,
+          imagePath,
+        );
+
+      const row = db
+        .prepare("SELECT * FROM prompts WHERE id = ?")
+        .get(result.lastInsertRowid);
+      res.status(201).json(row);
+    } catch (error) {
+      if (imagePath) {
+        deleteImage(imagePath, req);
+      }
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "プロンプトの保存に失敗しました",
+      });
+    }
   });
 
-  router.put("/:id", upload.single("image"), (req, res) => {
+  router.put("/:id", upload.single("image"), async (req, res) => {
     const db = getDb();
     const id = parseInt(req.params.id as string);
     const existing = db.prepare("SELECT * FROM prompts WHERE id = ?").get(id) as
@@ -87,32 +111,48 @@ export function createPromptsRouter(getDb: () => DatabaseSync): Router {
 
     const { title, prompt, has_break, description } = req.body;
 
-    const imagePath = req.file
-      ? req.file.filename
-      : (existing.image_path as string | null);
-
-    db.prepare(
-      `UPDATE prompts SET title = ?, prompt = ?, has_break = ?, description = ?,
-       image_path = ?, updated_at = datetime('now') WHERE id = ?`,
-    ).run(
-      title ?? (existing.title as string),
-      prompt ?? (existing.prompt as string),
-      has_break !== undefined
-        ? has_break === "true" || has_break === "1"
-          ? 1
-          : 0
-        : (existing.has_break as number),
-      description ?? (existing.description as string),
-      imagePath,
-      id,
-    );
-
+    let imagePath = existing.image_path as string | null;
     if (req.file) {
-      deleteImage(existing.image_path as string | null);
+      try {
+        imagePath = await saveUploadedImage(req.file, req);
+      } catch {
+        res.status(400).json({ error: "画像の変換に失敗しました" });
+        return;
+      }
     }
 
-    const row = db.prepare("SELECT * FROM prompts WHERE id = ?").get(id);
-    res.json(row);
+    try {
+      db.prepare(
+        `UPDATE prompts SET title = ?, prompt = ?, has_break = ?, description = ?,
+         image_path = ?, updated_at = datetime('now') WHERE id = ?`,
+      ).run(
+        title ?? (existing.title as string),
+        prompt ?? (existing.prompt as string),
+        has_break !== undefined
+          ? has_break === "true" || has_break === "1"
+            ? 1
+            : 0
+          : (existing.has_break as number),
+        description ?? (existing.description as string),
+        imagePath,
+        id,
+      );
+
+      if (req.file) {
+        deleteImage(existing.image_path as string | null, req);
+      }
+
+      const row = db.prepare("SELECT * FROM prompts WHERE id = ?").get(id);
+      res.json(row);
+    } catch (error) {
+      if (req.file && imagePath) {
+        deleteImage(imagePath, req);
+      }
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "プロンプトの更新に失敗しました",
+      });
+    }
   });
 
   router.delete("/:id", (req, res) => {
@@ -126,7 +166,7 @@ export function createPromptsRouter(getDb: () => DatabaseSync): Router {
       return;
     }
 
-    deleteImage(existing.image_path as string | null);
+    deleteImage(existing.image_path as string | null, req);
     db.prepare("DELETE FROM prompts WHERE id = ?").run(id);
     res.status(204).send();
   });
