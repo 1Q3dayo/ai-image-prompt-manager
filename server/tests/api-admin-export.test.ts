@@ -6,6 +6,7 @@ import type { DatabaseSync } from "node:sqlite";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { createTestAvifBuffer } from "./test-image.js";
 
 describe("Admin Export API", () => {
   let db: DatabaseSync;
@@ -85,18 +86,18 @@ describe("Admin Export API", () => {
 
     it("includeImages=trueで画像がbase64エンコードされる", async () => {
       const imagesDir = path.join(tmpDir, "images");
-      const testImage = Buffer.from("fake-png-data");
-      fs.writeFileSync(path.join(imagesDir, "test.png"), testImage);
+      const testImage = await createTestAvifBuffer();
+      fs.writeFileSync(path.join(imagesDir, "test.avif"), testImage);
 
       db.prepare(
         "INSERT INTO prompts (title, prompt, has_break, description, image_path) VALUES (?, ?, ?, ?, ?)",
-      ).run("テスト", "test", 0, "説明", "test.png");
+      ).run("テスト", "test", 0, "説明", "test.avif");
 
       const res = await request(app).get(
         "/api/admin/export/json?includeImages=true",
       );
       expect(res.body.prompts[0].image_data).toMatch(
-        /^data:image\/png;base64,/,
+        /^data:image\/avif;base64,/,
       );
     });
 

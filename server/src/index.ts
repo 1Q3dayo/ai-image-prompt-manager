@@ -26,6 +26,7 @@ export function createApp(db?: DatabaseSync, dataDirOverride?: string) {
   const dataDir = dataDirOverride ?? path.resolve(__dirname, "../../data");
   const imagesDir = path.join(dataDir, "images");
   fs.mkdirSync(imagesDir, { recursive: true });
+  app.set("dataDir", dataDir);
 
   app.use("/api/images", express.static(imagesDir));
 

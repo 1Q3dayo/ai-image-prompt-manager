@@ -1,6 +1,11 @@
 import { Router } from "express";
 import type { DatabaseSync } from "node:sqlite";
-import { upload, deleteImage, cleanupUploadedFile } from "../middleware/upload.js";
+import {
+  upload,
+  deleteImage,
+  cleanupUploadedFile,
+  saveUploadedImage,
+} from "../middleware/upload.js";
 
 export function createBundlesRouter(getDb: () => DatabaseSync): Router {
   const router = Router();
@@ -50,7 +55,7 @@ export function createBundlesRouter(getDb: () => DatabaseSync): Router {
     res.json({ ...bundle, items });
   });
 
-  router.post("/", upload.single("image"), (req, res) => {
+  router.post("/", upload.single("image"), async (req, res) => {
     const db = getDb();
     const { title, description } = req.body;
     let items: Array<{
@@ -72,43 +77,72 @@ export function createBundlesRouter(getDb: () => DatabaseSync): Router {
       return;
     }
 
-    const imagePath = req.file ? req.file.filename : null;
-    const result = db
-      .prepare(
-        `INSERT INTO bundles (title, description, image_path)
-         VALUES (?, ?, ?)`,
-      )
-      .run(title, description, imagePath);
-
-    const bundleId = result.lastInsertRowid;
-    const insertItem = db.prepare(
-      `INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
-       VALUES (?, ?, ?, ?, ?)`,
-    );
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      insertItem.run(
-        bundleId,
-        i,
-        item.title,
-        item.prompt,
-        item.has_break ? 1 : 0,
-      );
+    let imagePath: string | null = null;
+    if (req.file) {
+      try {
+        imagePath = await saveUploadedImage(req.file, req);
+      } catch {
+        res.status(400).json({ error: "画像の変換に失敗しました" });
+        return;
+      }
     }
 
-    const bundle = db
-      .prepare("SELECT * FROM bundles WHERE id = ?")
-      .get(bundleId);
-    const savedItems = db
-      .prepare(
-        "SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY sort_order",
-      )
-      .all(bundleId);
-    res.status(201).json({ ...(bundle as object), items: savedItems });
+    let transactionStarted = false;
+    try {
+      db.exec("BEGIN TRANSACTION");
+      transactionStarted = true;
+
+      const result = db
+        .prepare(
+          `INSERT INTO bundles (title, description, image_path)
+          VALUES (?, ?, ?)`,
+        )
+        .run(title, description, imagePath);
+
+      const bundleId = result.lastInsertRowid;
+      const insertItem = db.prepare(
+        `INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
+         VALUES (?, ?, ?, ?, ?)`,
+      );
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        insertItem.run(
+          bundleId,
+          i,
+          item.title,
+          item.prompt,
+          item.has_break ? 1 : 0,
+        );
+      }
+
+      db.exec("COMMIT");
+      transactionStarted = false;
+
+      const bundle = db
+        .prepare("SELECT * FROM bundles WHERE id = ?")
+        .get(bundleId);
+      const savedItems = db
+        .prepare(
+          "SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY sort_order",
+        )
+        .all(bundleId);
+      res.status(201).json({ ...(bundle as object), items: savedItems });
+    } catch (error) {
+      if (transactionStarted) {
+        db.exec("ROLLBACK");
+      }
+      if (imagePath) {
+        deleteImage(imagePath, req);
+      }
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "バンドルの保存に失敗しました",
+      });
+    }
   });
 
-  router.put("/:id", upload.single("image"), (req, res) => {
+  router.put("/:id", upload.single("image"), async (req, res) => {
     const db = getDb();
     const id = parseInt(req.params.id as string);
     const existing = db
@@ -122,12 +156,14 @@ export function createBundlesRouter(getDb: () => DatabaseSync): Router {
 
     const { title, description } = req.body;
 
+    let items:
+      | Array<{
+          title: string;
+          prompt: string;
+          has_break: boolean | number;
+        }>
+      | undefined;
     if (req.body.items) {
-      let items: Array<{
-        title: string;
-        prompt: string;
-        has_break: boolean | number;
-      }>;
       try {
         items = JSON.parse(req.body.items);
       } catch {
@@ -135,43 +171,71 @@ export function createBundlesRouter(getDb: () => DatabaseSync): Router {
         res.status(400).json({ error: "itemsのJSON形式が不正です" });
         return;
       }
+    }
 
-      db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
-      const insertItem = db.prepare(
-        `INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
-         VALUES (?, ?, ?, ?, ?)`,
-      );
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        insertItem.run(id, i, item.title, item.prompt, item.has_break ? 1 : 0);
+    let imagePath = existing.image_path as string | null;
+    if (req.file) {
+      try {
+        imagePath = await saveUploadedImage(req.file, req);
+      } catch {
+        res.status(400).json({ error: "画像の変換に失敗しました" });
+        return;
       }
     }
 
-    const imagePath = req.file
-      ? req.file.filename
-      : (existing.image_path as string | null);
+    let transactionStarted = false;
+    try {
+      db.exec("BEGIN TRANSACTION");
+      transactionStarted = true;
 
-    db.prepare(
-      `UPDATE bundles SET title = ?, description = ?, image_path = ?,
-       updated_at = datetime('now') WHERE id = ?`,
-    ).run(
-      title ?? existing.title,
-      description ?? existing.description,
-      imagePath,
-      id,
-    );
+      if (items) {
+        db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
+        const insertItem = db.prepare(
+          `INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
+           VALUES (?, ?, ?, ?, ?)`,
+        );
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          insertItem.run(id, i, item.title, item.prompt, item.has_break ? 1 : 0);
+        }
+      }
 
-    if (req.file) {
-      deleteImage(existing.image_path as string | null);
+      db.prepare(
+        `UPDATE bundles SET title = ?, description = ?, image_path = ?,
+         updated_at = datetime('now') WHERE id = ?`,
+      ).run(
+        title ?? existing.title,
+        description ?? existing.description,
+        imagePath,
+        id,
+      );
+
+      db.exec("COMMIT");
+      transactionStarted = false;
+
+      if (req.file) {
+        deleteImage(existing.image_path as string | null, req);
+      }
+
+      const bundle = db.prepare("SELECT * FROM bundles WHERE id = ?").get(id);
+      const savedItems = db
+        .prepare(
+          "SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY sort_order",
+        )
+        .all(id);
+      res.json({ ...(bundle as object), items: savedItems });
+    } catch (error) {
+      if (transactionStarted) {
+        db.exec("ROLLBACK");
+      }
+      if (req.file && imagePath) {
+        deleteImage(imagePath, req);
+      }
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "バンドルの更新に失敗しました",
+      });
     }
-
-    const bundle = db.prepare("SELECT * FROM bundles WHERE id = ?").get(id);
-    const savedItems = db
-      .prepare(
-        "SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY sort_order",
-      )
-      .all(id);
-    res.json({ ...(bundle as object), items: savedItems });
   });
 
   router.delete("/:id", (req, res) => {
@@ -185,7 +249,7 @@ export function createBundlesRouter(getDb: () => DatabaseSync): Router {
       return;
     }
 
-    deleteImage(existing.image_path as string | null);
+    deleteImage(existing.image_path as string | null, req);
     db.prepare("DELETE FROM bundles WHERE id = ?").run(id);
     res.status(204).send();
   });

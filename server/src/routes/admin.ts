@@ -3,9 +3,13 @@ import type { DatabaseSync } from "node:sqlite";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { v4 as uuidv4 } from "uuid";
 import { createDatabase } from "../db/connection.js";
 import { initializeSchema } from "../db/schema.js";
+import {
+  deleteImage,
+  getImageMimeType,
+  restoreBase64Image,
+} from "../middleware/upload.js";
 
 const adminUpload = multer({
   storage: multer.memoryStorage(),
@@ -118,16 +122,8 @@ export function createAdminRouter(
       if (includeImages && p.image_path) {
         const imgPath = path.join(imagesDir, p.image_path as string);
         if (fs.existsSync(imgPath)) {
-          const ext = path.extname(p.image_path as string).toLowerCase();
-          const mime =
-            ext === ".png"
-              ? "image/png"
-              : ext === ".gif"
-                ? "image/gif"
-                : ext === ".webp"
-                  ? "image/webp"
-                  : "image/jpeg";
           const data = fs.readFileSync(imgPath);
+          const mime = getImageMimeType(p.image_path as string);
           item.image_data = `data:${mime};base64,${data.toString("base64")}`;
         }
       }
@@ -151,16 +147,8 @@ export function createAdminRouter(
       if (includeImages && b.image_path) {
         const imgPath = path.join(imagesDir, b.image_path as string);
         if (fs.existsSync(imgPath)) {
-          const ext = path.extname(b.image_path as string).toLowerCase();
-          const mime =
-            ext === ".png"
-              ? "image/png"
-              : ext === ".gif"
-                ? "image/gif"
-                : ext === ".webp"
-                  ? "image/webp"
-                  : "image/jpeg";
           const data = fs.readFileSync(imgPath);
+          const mime = getImageMimeType(b.image_path as string);
           item.image_data = `data:${mime};base64,${data.toString("base64")}`;
         }
       }
@@ -205,7 +193,7 @@ export function createAdminRouter(
     stream.pipe(res);
   });
 
-  router.post("/import/json", adminUpload.single("file"), (req, res) => {
+  router.post("/import/json", adminUpload.single("file"), async (req, res) => {
     if (!req.file) {
       res.status(400).json({ error: "ファイルが必要です" });
       return;
@@ -235,10 +223,10 @@ export function createAdminRouter(
     }
 
     const db = getDb();
-    const imagesDir = path.join(dataDir, "images");
     let importedPrompts = 0;
     let importedBundles = 0;
     let importedImages = 0;
+    const createdImages: string[] = [];
 
     db.exec("BEGIN TRANSACTION");
     try {
@@ -256,8 +244,11 @@ export function createAdminRouter(
       for (const p of payload.prompts!) {
         let imagePath: string | null = null;
         if (p.image_data && typeof p.image_data === "string") {
-          imagePath = restoreBase64Image(p.image_data as string, imagesDir);
-          if (imagePath) importedImages++;
+          imagePath = await restoreBase64Image(p.image_data as string, dataDir);
+          if (imagePath) {
+            importedImages++;
+            createdImages.push(imagePath);
+          }
         }
 
         insertPrompt.run(
@@ -284,8 +275,11 @@ export function createAdminRouter(
       for (const b of payload.bundles!) {
         let imagePath: string | null = null;
         if (b.image_data && typeof b.image_data === "string") {
-          imagePath = restoreBase64Image(b.image_data as string, imagesDir);
-          if (imagePath) importedImages++;
+          imagePath = await restoreBase64Image(b.image_data as string, dataDir);
+          if (imagePath) {
+            importedImages++;
+            createdImages.push(imagePath);
+          }
         }
 
         const result = insertBundle.run(
@@ -321,6 +315,9 @@ export function createAdminRouter(
       db.exec("COMMIT");
     } catch (e) {
       db.exec("ROLLBACK");
+      for (const imagePath of createdImages) {
+        deleteImage(imagePath, dataDir);
+      }
       res.status(500).json({
         error: e instanceof Error ? e.message : "インポートに失敗しました",
       });
@@ -393,28 +390,4 @@ export function createAdminRouter(
   });
 
   return router;
-}
-
-function restoreBase64Image(
-  dataUrl: string,
-  imagesDir: string,
-): string | null {
-  const match = dataUrl.match(
-    /^data:image\/(jpeg|png|gif|webp);base64,(.+)$/,
-  );
-  if (!match) return null;
-
-  const extMap: Record<string, string> = {
-    jpeg: ".jpg",
-    png: ".png",
-    gif: ".gif",
-    webp: ".webp",
-  };
-  const ext = extMap[match[1]] ?? ".jpg";
-  const filename = `${uuidv4()}${ext}`;
-  const filePath = path.join(imagesDir, filename);
-
-  fs.mkdirSync(imagesDir, { recursive: true });
-  fs.writeFileSync(filePath, Buffer.from(match[2], "base64"));
-  return filename;
 }

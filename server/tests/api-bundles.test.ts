@@ -6,6 +6,7 @@ import type { DatabaseSync } from "node:sqlite";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { createTestPngBuffer, isAvifFile } from "./test-image.js";
 
 describe("Bundles API", () => {
   let db: DatabaseSync;
@@ -17,7 +18,7 @@ describe("Bundles API", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aipm-api-test-"));
     dbPath = path.join(tmpDir, "test.sqlite");
     db = createDatabase(dbPath);
-    app = createApp(db);
+    app = createApp(db, tmpDir);
   });
 
   afterEach(() => {
@@ -76,6 +77,27 @@ describe("Bundles API", () => {
         .field("items", "invalid json");
 
       expect(res.status).toBe(400);
+    });
+
+    it("添付画像をAVIFに変換して保存できる", async () => {
+      const pngBuffer = await createTestPngBuffer();
+
+      const res = await request(app)
+        .post("/api/bundles")
+        .field("title", "画像付きバンドル")
+        .field("description", "説明")
+        .field("items", JSON.stringify([]))
+        .attach("image", pngBuffer, {
+          filename: "sample.png",
+          contentType: "image/png",
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.image_path).toMatch(/\.avif$/);
+
+      const savedPath = path.join(tmpDir, "images", res.body.image_path);
+      expect(fs.existsSync(savedPath)).toBe(true);
+      expect(isAvifFile(savedPath)).toBe(true);
     });
   });
 
