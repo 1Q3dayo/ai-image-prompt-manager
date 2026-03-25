@@ -7,8 +7,8 @@ export function createPromptsRouter(db: DatabaseSync): Router {
 
   router.get("/", (req, res) => {
     const q = (req.query.q as string) || "";
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit as string) || 50, 200));
+    const offset = Math.max(0, parseInt(req.query.offset as string) || 0);
 
     if (q) {
       const results = searchPrompts(db, q, limit, offset);

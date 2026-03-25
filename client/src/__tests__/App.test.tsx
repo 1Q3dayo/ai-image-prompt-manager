@@ -47,10 +47,10 @@ describe("App", () => {
     );
 
     expect(screen.getByTestId("manager-panel")).toBeVisible();
-    expect(screen.getByTestId("generator-panel")).not.toBeVisible();
+    expect(screen.queryByTestId("generator-panel")).not.toBeInTheDocument();
   });
 
-  it("非表示パネルもDOMに存在する（状態保持）", async () => {
+  it("非アクティブパネルはDOMに存在しない（遅延レンダリング）", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -58,9 +58,9 @@ describe("App", () => {
       screen.getByRole("tab", { name: "プロンプトマネージャ" }),
     );
 
-    expect(screen.getByTestId("generator-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("generator-panel")).not.toBeInTheDocument();
     expect(screen.getByTestId("manager-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("admin-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("admin-panel")).not.toBeInTheDocument();
   });
 
   it("タブを切り替えてもaria-selectedが正しく更新される", async () => {
@@ -83,22 +83,15 @@ describe("App", () => {
     expect(managerTab).toHaveAttribute("aria-selected", "true");
   });
 
-  it("非表示パネルにaria-hidden=trueが設定される", async () => {
+  it("アクティブタブのパネルのみDOMに存在する", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("tab", { name: "管理" }));
 
-    const panels = screen.getAllByRole("tabpanel", { hidden: true });
-    const hiddenPanels = panels.filter(
-      (p) => p.getAttribute("aria-hidden") === "true",
-    );
-    const visiblePanels = panels.filter(
-      (p) => p.getAttribute("aria-hidden") === "false",
-    );
-
-    expect(hiddenPanels).toHaveLength(2);
-    expect(visiblePanels).toHaveLength(1);
+    const panels = screen.getAllByRole("tabpanel");
+    expect(panels).toHaveLength(1);
+    expect(panels[0]).toHaveAttribute("id", "tabpanel-admin");
   });
 
   it("aria-controlsとaria-labelledbyが正しく紐づく", () => {

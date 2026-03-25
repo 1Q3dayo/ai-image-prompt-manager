@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TabNavigation } from "./components/layout/TabNavigation";
 import { TabPanel } from "./components/layout/TabPanel";
 import { PromptGenerator } from "./components/prompt-generator/PromptGenerator";
+import { PromptManager } from "./components/prompt-manager/PromptManager";
 import type { TabId } from "./types";
 
 function App() {
@@ -27,7 +28,7 @@ function App() {
 
         <TabPanel tabId="manager" active={activeTab === "manager"}>
           <div data-testid="manager-panel">
-            <p className="text-gray-500">プロンプトマネージャ（実装予定）</p>
+            <PromptManager />
           </div>
         </TabPanel>
 
