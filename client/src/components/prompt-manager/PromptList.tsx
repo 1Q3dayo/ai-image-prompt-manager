@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchPrompts, type Prompt } from "../../hooks/useApi";
 import { PromptCard } from "./PromptCard";
+import { PromptGridCard } from "./PromptGridCard";
 import { Pagination } from "./Pagination";
 import type { ViewMode, ImageSize } from "./types";
+
+const GRID_COLS: Record<ImageSize, string> = {
+  sm: "grid-cols-4 sm:grid-cols-5 md:grid-cols-6",
+  md: "grid-cols-3 sm:grid-cols-4",
+  lg: "grid-cols-2 sm:grid-cols-3",
+};
 
 const PAGE_SIZE = 20;
 
@@ -71,13 +78,25 @@ export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "
           {query ? "見つかりませんでした" : "保存されたプロンプトはありません"}
         </p>
       )}
-      {!loading && !error && results.length > 0 && (
+      {!loading && !error && results.length > 0 && viewMode === "list" && (
         <div className="space-y-2">
           {results.map((prompt) => (
             <PromptCard
               key={prompt.id}
               prompt={prompt}
               imageSize={imageSize}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
+      {!loading && !error && results.length > 0 && viewMode === "grid" && (
+        <div className={`grid ${GRID_COLS[imageSize]} gap-3`}>
+          {results.map((prompt) => (
+            <PromptGridCard
+              key={prompt.id}
+              prompt={prompt}
               onEdit={onEdit}
               onDelete={onDelete}
             />
