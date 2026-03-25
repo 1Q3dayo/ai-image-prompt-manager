@@ -30,8 +30,6 @@ export function BundleEditDialog({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError("");
     fetchBundle(bundleId)
       .then((data: Bundle) => {
         if (cancelled) return;
@@ -55,6 +53,10 @@ export function BundleEditDialog({
   const handleSave = async () => {
     if (!title.trim()) {
       setError("タイトルは必須です");
+      return;
+    }
+    if (!description.trim()) {
+      setError("説明文は必須です");
       return;
     }
     setSaving(true);

@@ -31,8 +31,6 @@ export function PromptEditDialog({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError("");
     fetchPrompt(promptId)
       .then((data: Prompt) => {
         if (cancelled) return;
@@ -61,6 +59,10 @@ export function PromptEditDialog({
     }
     if (!prompt.trim()) {
       setError("プロンプトは必須です");
+      return;
+    }
+    if (!description.trim()) {
+      setError("説明文は必須です");
       return;
     }
     setSaving(true);

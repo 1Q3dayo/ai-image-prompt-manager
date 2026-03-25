@@ -150,4 +150,3 @@ export function PromptManager() {
   );
 }
 
-export type { Segment };

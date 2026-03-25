@@ -61,7 +61,7 @@ export function PromptList({ query, refreshKey, onEdit, onDelete }: PromptListPr
         </p>
       )}
       {!loading && error && (
-        <p className="text-sm text-red-500 text-center py-8">{error}</p>
+        <p className="text-sm text-red-600 text-center py-8">{error}</p>
       )}
       {!loading && !error && results.length === 0 && (
         <p className="text-sm text-gray-500 text-center py-8">
@@ -90,4 +90,3 @@ export function PromptList({ query, refreshKey, onEdit, onDelete }: PromptListPr
   );
 }
 
-export { type PromptListProps };

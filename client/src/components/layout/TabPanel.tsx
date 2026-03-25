@@ -8,13 +8,13 @@ interface TabPanelProps {
 }
 
 export function TabPanel({ tabId, active, children }: TabPanelProps) {
+  if (!active) return null;
+
   return (
     <div
       id={`tabpanel-${tabId}`}
       role="tabpanel"
       aria-labelledby={`tab-${tabId}`}
-      style={{ display: active ? "block" : "none" }}
-      aria-hidden={!active}
     >
       {children}
     </div>
