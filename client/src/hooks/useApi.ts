@@ -71,13 +71,17 @@ export interface BundleItem {
   sort_order: number;
 }
 
-export interface Bundle {
+export interface BundleSummary {
   id: number;
   title: string;
   description: string;
   image_path: string | null;
+  item_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface Bundle extends BundleSummary {
   items: BundleItem[];
 }
 
@@ -85,7 +89,7 @@ export async function fetchBundles(
   q = "",
   limit = 50,
   offset = 0,
-): Promise<PaginatedResponse<Bundle>> {
+): Promise<PaginatedResponse<BundleSummary>> {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("limit", String(limit));

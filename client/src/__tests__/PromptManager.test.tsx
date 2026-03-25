@@ -65,11 +65,13 @@ describe("PromptManager", () => {
     });
   });
 
-  it("バンドルセグメントでバンドル一覧コンテナが表示される", async () => {
+  it("バンドルセグメントでバンドル一覧が表示される", async () => {
     const user = userEvent.setup();
     render(<PromptManager />);
 
     await user.click(screen.getByTestId("segment-bundles"));
-    expect(screen.getByTestId("bundle-list-container")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("bundle-list")).toBeInTheDocument();
+    });
   });
 });

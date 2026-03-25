@@ -1,7 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PromptList } from "./PromptList";
+import { BundleList } from "./BundleList";
 
 type Segment = "prompts" | "bundles";
+
+interface EditTarget {
+  type: "prompt" | "bundle";
+  id: number;
+}
 
 interface DeleteTarget {
   type: "prompt" | "bundle";
@@ -14,7 +20,7 @@ export function PromptManager() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const [editPromptId, setEditPromptId] = useState<number | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const handleQueryChange = useCallback((value: string) => {
@@ -86,20 +92,19 @@ export function PromptManager() {
       {segment === "prompts" ? (
         <PromptList
           query={debouncedQuery}
-          onEdit={(id) => setEditPromptId(id)}
+          onEdit={(id) => setEditTarget({ type: "prompt", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "prompt", id, title })}
         />
       ) : (
-        <div data-testid="bundle-list-container">
-          <p className="text-gray-500">
-            バンドル一覧（実装予定）
-            {debouncedQuery && ` - 検索: ${debouncedQuery}`}
-          </p>
-        </div>
+        <BundleList
+          query={debouncedQuery}
+          onEdit={(id) => setEditTarget({ type: "bundle", id })}
+          onDelete={(id, title) => setDeleteTarget({ type: "bundle", id, title })}
+        />
       )}
 
       {/* 編集・削除ダイアログ（後のステップで実装） */}
-      {editPromptId !== null && (
+      {editTarget !== null && (
         <div data-testid="edit-dialog-placeholder" />
       )}
       {deleteTarget !== null && (

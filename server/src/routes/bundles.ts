@@ -16,7 +16,8 @@ export function createBundlesRouter(db: DatabaseSync): Router {
     } else {
       const rows = db
         .prepare(
-          "SELECT * FROM bundles ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+          `SELECT b.*, (SELECT COUNT(*) FROM bundle_items WHERE bundle_id = b.id) as item_count
+           FROM bundles b ORDER BY b.updated_at DESC LIMIT ? OFFSET ?`,
         )
         .all(limit, offset);
       const total = (
@@ -199,7 +200,8 @@ function searchBundles(
       const ftsQuery = `"${escaped}"`;
       const data = db
         .prepare(
-          `SELECT b.* FROM bundles b
+          `SELECT b.*, (SELECT COUNT(*) FROM bundle_items WHERE bundle_id = b.id) as item_count
+           FROM bundles b
            JOIN bundles_fts f ON b.id = f.rowid
            WHERE bundles_fts MATCH ?
            ORDER BY b.updated_at DESC LIMIT ? OFFSET ?`,
@@ -230,15 +232,16 @@ function likeFallback(
   const pattern = `%${q}%`;
   const data = db
     .prepare(
-      `SELECT * FROM bundles
-       WHERE title LIKE ? OR description LIKE ?
-       ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT b.*, (SELECT COUNT(*) FROM bundle_items WHERE bundle_id = b.id) as item_count
+       FROM bundles b
+       WHERE b.title LIKE ? OR b.description LIKE ?
+       ORDER BY b.updated_at DESC LIMIT ? OFFSET ?`,
     )
     .all(pattern, pattern, limit, offset);
   const totalResult = db
     .prepare(
-      `SELECT COUNT(*) as count FROM bundles
-       WHERE title LIKE ? OR description LIKE ?`,
+      `SELECT COUNT(*) as count FROM bundles b
+       WHERE b.title LIKE ? OR b.description LIKE ?`,
     )
     .get(pattern, pattern) as Record<string, number>;
   return { data, total: totalResult.count };
