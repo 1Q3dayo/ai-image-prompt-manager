@@ -120,6 +120,60 @@ export async function saveBundle(data: {
   return res.json();
 }
 
+export async function updatePrompt(
+  id: number,
+  data: {
+    title?: string;
+    prompt?: string;
+    has_break?: boolean;
+    description?: string;
+    image?: File;
+  },
+): Promise<Prompt> {
+  const form = new FormData();
+  if (data.title !== undefined) form.append("title", data.title);
+  if (data.prompt !== undefined) form.append("prompt", data.prompt);
+  if (data.has_break !== undefined)
+    form.append("has_break", data.has_break ? "true" : "false");
+  if (data.description !== undefined)
+    form.append("description", data.description);
+  if (data.image) form.append("image", data.image);
+  const res = await fetch(`${BASE_URL}/prompts/${id}`, {
+    method: "PUT",
+    body: form,
+  });
+  if (!res.ok) throw new Error("プロンプトの更新に失敗しました");
+  return res.json();
+}
+
+export async function updateBundle(
+  id: number,
+  data: {
+    title?: string;
+    description?: string;
+    image?: File;
+  },
+): Promise<Bundle> {
+  const form = new FormData();
+  if (data.title !== undefined) form.append("title", data.title);
+  if (data.description !== undefined)
+    form.append("description", data.description);
+  if (data.image) form.append("image", data.image);
+  const res = await fetch(`${BASE_URL}/bundles/${id}`, {
+    method: "PUT",
+    body: form,
+  });
+  if (!res.ok) throw new Error("バンドルの更新に失敗しました");
+  return res.json();
+}
+
+export async function deleteBundle(id: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/bundles/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("バンドルの削除に失敗しました");
+}
+
 export function getImageUrl(imagePath: string): string {
   return `${BASE_URL}/images/${imagePath}`;
 }
