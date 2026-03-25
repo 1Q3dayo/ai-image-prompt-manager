@@ -4,6 +4,7 @@ import {
   fetchBundle,
   getImageUrl,
   type Bundle,
+  type BundleSummary,
 } from "../../hooks/useApi";
 
 interface BundleLoadDialogProps {
@@ -18,7 +19,7 @@ export function BundleLoadDialog({
   onSelect,
 }: BundleLoadDialogProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Bundle[]>([]);
+  const [results, setResults] = useState<BundleSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -76,7 +77,7 @@ export function BundleLoadDialog({
 
   if (!open) return null;
 
-  const handleSelect = async (bundlePreview: Bundle) => {
+  const handleSelect = async (bundlePreview: BundleSummary) => {
     setError("");
     try {
       const full = await fetchBundle(bundlePreview.id);

@@ -7,11 +7,12 @@ const PAGE_SIZE = 20;
 
 interface PromptListProps {
   query: string;
+  refreshKey?: number;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function PromptList({ query, onEdit, onDelete }: PromptListProps) {
+export function PromptList({ query, refreshKey, onEdit, onDelete }: PromptListProps) {
   const [results, setResults] = useState<Prompt[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -45,7 +46,7 @@ export function PromptList({ query, onEdit, onDelete }: PromptListProps) {
   useEffect(() => {
     setOffset(0);
     load(query, 0);
-  }, [query, load]);
+  }, [query, refreshKey, load]);
 
   const handlePageChange = (newOffset: number) => {
     setOffset(newOffset);

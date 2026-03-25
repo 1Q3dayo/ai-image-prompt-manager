@@ -7,11 +7,12 @@ const PAGE_SIZE = 20;
 
 interface BundleListProps {
   query: string;
+  refreshKey?: number;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function BundleList({ query, onEdit, onDelete }: BundleListProps) {
+export function BundleList({ query, refreshKey, onEdit, onDelete }: BundleListProps) {
   const [results, setResults] = useState<BundleSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -45,7 +46,7 @@ export function BundleList({ query, onEdit, onDelete }: BundleListProps) {
   useEffect(() => {
     setOffset(0);
     load(query, 0);
-  }, [query, load]);
+  }, [query, refreshKey, load]);
 
   const handlePageChange = (newOffset: number) => {
     setOffset(newOffset);

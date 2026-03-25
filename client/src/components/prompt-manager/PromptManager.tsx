@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { deletePrompt, deleteBundle } from "../../hooks/useApi";
 import { PromptList } from "./PromptList";
 import { BundleList } from "./BundleList";
+import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 
 type Segment = "prompts" | "bundles";
 
@@ -22,6 +24,7 @@ export function PromptManager() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
@@ -92,23 +95,38 @@ export function PromptManager() {
       {segment === "prompts" ? (
         <PromptList
           query={debouncedQuery}
+          refreshKey={refreshKey}
           onEdit={(id) => setEditTarget({ type: "prompt", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "prompt", id, title })}
         />
       ) : (
         <BundleList
           query={debouncedQuery}
+          refreshKey={refreshKey}
           onEdit={(id) => setEditTarget({ type: "bundle", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "bundle", id, title })}
         />
       )}
 
-      {/* 編集・削除ダイアログ（後のステップで実装） */}
+      {/* 編集ダイアログ（後のステップで実装） */}
       {editTarget !== null && (
         <div data-testid="edit-dialog-placeholder" />
       )}
       {deleteTarget !== null && (
-        <div data-testid="delete-dialog-placeholder" />
+        <DeleteConfirmDialog
+          title="削除確認"
+          message={`「${deleteTarget.title}」を削除しますか？この操作は取り消せません。`}
+          onConfirm={async () => {
+            if (deleteTarget.type === "prompt") {
+              await deletePrompt(deleteTarget.id);
+            } else {
+              await deleteBundle(deleteTarget.id);
+            }
+            setDeleteTarget(null);
+            setRefreshKey((k) => k + 1);
+          }}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

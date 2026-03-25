@@ -6,6 +6,8 @@ import { PromptManager } from "../components/prompt-manager/PromptManager";
 vi.mock("../hooks/useApi", () => ({
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
   fetchBundles: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  deletePrompt: vi.fn().mockResolvedValue(undefined),
+  deleteBundle: vi.fn().mockResolvedValue(undefined),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
 }));
 
