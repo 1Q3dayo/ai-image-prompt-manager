@@ -1,11 +1,20 @@
 import { Router } from "express";
 import type { DatabaseSync } from "node:sqlite";
+import multer from "multer";
 import fs from "fs";
 import path from "path";
+import { v4 as uuidv4 } from "uuid";
+import { createDatabase } from "../db/connection.js";
+import { initializeSchema } from "../db/schema.js";
+
+const adminUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
 
 export function createAdminRouter(
   getDb: () => DatabaseSync,
-  _setDb: (db: DatabaseSync) => void,
+  setDb: (db: DatabaseSync) => void,
   dataDir: string,
 ): Router {
   const router = Router();
@@ -196,5 +205,216 @@ export function createAdminRouter(
     stream.pipe(res);
   });
 
+  router.post("/import/json", adminUpload.single("file"), (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "ファイルが必要です" });
+      return;
+    }
+
+    const mode = (req.body.mode as string) || "replace";
+    if (mode !== "replace" && mode !== "append") {
+      res.status(400).json({ error: "modeはreplaceまたはappendを指定してください" });
+      return;
+    }
+
+    let payload: {
+      version?: number;
+      prompts?: Array<Record<string, unknown>>;
+      bundles?: Array<Record<string, unknown>>;
+    };
+    try {
+      payload = JSON.parse(req.file.buffer.toString("utf-8"));
+    } catch {
+      res.status(400).json({ error: "JSONの形式が不正です" });
+      return;
+    }
+
+    if (!payload.version || !Array.isArray(payload.prompts) || !Array.isArray(payload.bundles)) {
+      res.status(400).json({ error: "エクスポートファイルの形式が不正です" });
+      return;
+    }
+
+    const db = getDb();
+    const imagesDir = path.join(dataDir, "images");
+    let importedPrompts = 0;
+    let importedBundles = 0;
+    let importedImages = 0;
+
+    db.exec("BEGIN TRANSACTION");
+    try {
+      if (mode === "replace") {
+        db.exec("DELETE FROM bundle_items");
+        db.exec("DELETE FROM bundles");
+        db.exec("DELETE FROM prompts");
+      }
+
+      const insertPrompt = db.prepare(
+        `INSERT INTO prompts (title, prompt, has_break, description, image_path, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      );
+
+      for (const p of payload.prompts!) {
+        let imagePath: string | null = null;
+        if (p.image_data && typeof p.image_data === "string") {
+          imagePath = restoreBase64Image(p.image_data as string, imagesDir);
+          if (imagePath) importedImages++;
+        }
+
+        insertPrompt.run(
+          p.title as string,
+          p.prompt as string,
+          (p.has_break as number) ?? 0,
+          (p.description as string) ?? "",
+          imagePath,
+          (p.created_at as string) ?? new Date().toISOString(),
+          (p.updated_at as string) ?? new Date().toISOString(),
+        );
+        importedPrompts++;
+      }
+
+      const insertBundle = db.prepare(
+        `INSERT INTO bundles (title, description, image_path, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      );
+      const insertItem = db.prepare(
+        `INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
+         VALUES (?, ?, ?, ?, ?)`,
+      );
+
+      for (const b of payload.bundles!) {
+        let imagePath: string | null = null;
+        if (b.image_data && typeof b.image_data === "string") {
+          imagePath = restoreBase64Image(b.image_data as string, imagesDir);
+          if (imagePath) importedImages++;
+        }
+
+        const result = insertBundle.run(
+          b.title as string,
+          (b.description as string) ?? "",
+          imagePath,
+          (b.created_at as string) ?? new Date().toISOString(),
+          (b.updated_at as string) ?? new Date().toISOString(),
+        );
+        const bundleId = Number(result.lastInsertRowid);
+
+        if (Array.isArray(b.items)) {
+          for (let i = 0; i < b.items.length; i++) {
+            const item = b.items[i] as Record<string, unknown>;
+            insertItem.run(
+              bundleId,
+              (item.sort_order as number) ?? i,
+              item.title as string,
+              item.prompt as string,
+              (item.has_break as number) ?? 0,
+            );
+          }
+        }
+
+        importedBundles++;
+      }
+
+      if (mode === "replace") {
+        db.exec("INSERT INTO prompts_fts(prompts_fts) VALUES ('rebuild')");
+        db.exec("INSERT INTO bundles_fts(bundles_fts) VALUES ('rebuild')");
+      }
+
+      db.exec("COMMIT");
+    } catch (e) {
+      db.exec("ROLLBACK");
+      res.status(500).json({
+        error: e instanceof Error ? e.message : "インポートに失敗しました",
+      });
+      return;
+    }
+
+    res.json({
+      imported: {
+        prompts: importedPrompts,
+        bundles: importedBundles,
+        images: importedImages,
+      },
+    });
+  });
+
+  router.post("/import/db", adminUpload.single("file"), (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "ファイルが必要です" });
+      return;
+    }
+
+    const dbPath = path.join(dataDir, "db.sqlite");
+    const tmpPath = path.join(dataDir, `tmp-restore-${Date.now()}.sqlite`);
+
+    try {
+      fs.writeFileSync(tmpPath, req.file.buffer);
+
+      let testDb: DatabaseSync;
+      try {
+        testDb = createDatabase(tmpPath);
+      } catch {
+        fs.unlinkSync(tmpPath);
+        res.status(400).json({ error: "有効なSQLiteファイルではありません" });
+        return;
+      }
+
+      try {
+        testDb.prepare("SELECT COUNT(*) FROM prompts").get();
+        testDb.prepare("SELECT COUNT(*) FROM bundles").get();
+        testDb.prepare("SELECT COUNT(*) FROM bundle_items").get();
+      } catch {
+        testDb.close();
+        fs.unlinkSync(tmpPath);
+        res.status(400).json({ error: "必要なテーブルが存在しません" });
+        return;
+      }
+      testDb.close();
+
+      const currentDb = getDb();
+      currentDb.close();
+
+      for (const suffix of ["", "-wal", "-shm"]) {
+        const p = dbPath + suffix;
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      }
+
+      fs.renameSync(tmpPath, dbPath);
+
+      const newDb = createDatabase(dbPath);
+      initializeSchema(newDb);
+      setDb(newDb);
+
+      res.json({ status: "ok", message: "データベースをリストアしました" });
+    } catch (e) {
+      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+      res.status(500).json({
+        error: e instanceof Error ? e.message : "リストアに失敗しました",
+      });
+    }
+  });
+
   return router;
+}
+
+function restoreBase64Image(
+  dataUrl: string,
+  imagesDir: string,
+): string | null {
+  const match = dataUrl.match(
+    /^data:image\/(jpeg|png|gif|webp);base64,(.+)$/,
+  );
+  if (!match) return null;
+
+  const extMap: Record<string, string> = {
+    jpeg: ".jpg",
+    png: ".png",
+    gif: ".gif",
+    webp: ".webp",
+  };
+  const ext = extMap[match[1]] ?? ".jpg";
+  const filename = `${uuidv4()}${ext}`;
+  const filePath = path.join(imagesDir, filename);
+
+  fs.mkdirSync(imagesDir, { recursive: true });
+  fs.writeFileSync(filePath, Buffer.from(match[2], "base64"));
+  return filename;
 }
