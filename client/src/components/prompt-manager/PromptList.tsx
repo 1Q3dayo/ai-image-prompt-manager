@@ -2,17 +2,20 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchPrompts, type Prompt } from "../../hooks/useApi";
 import { PromptCard } from "./PromptCard";
 import { Pagination } from "./Pagination";
+import type { ViewMode, ImageSize } from "./types";
 
 const PAGE_SIZE = 20;
 
 interface PromptListProps {
   query: string;
   refreshKey?: number;
+  viewMode?: ViewMode;
+  imageSize?: ImageSize;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function PromptList({ query, refreshKey, onEdit, onDelete }: PromptListProps) {
+export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "sm", onEdit, onDelete }: PromptListProps) {
   const [results, setResults] = useState<Prompt[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -74,6 +77,7 @@ export function PromptList({ query, refreshKey, onEdit, onDelete }: PromptListPr
             <PromptCard
               key={prompt.id}
               prompt={prompt}
+              imageSize={imageSize}
               onEdit={onEdit}
               onDelete={onDelete}
             />
