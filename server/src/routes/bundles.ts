@@ -2,10 +2,11 @@ import { Router } from "express";
 import type { DatabaseSync } from "node:sqlite";
 import { upload, deleteImage, cleanupUploadedFile } from "../middleware/upload.js";
 
-export function createBundlesRouter(db: DatabaseSync): Router {
+export function createBundlesRouter(getDb: () => DatabaseSync): Router {
   const router = Router();
 
   router.get("/", (req, res) => {
+    const db = getDb();
     const q = (req.query.q as string) || "";
     const limit = Math.max(1, Math.min(parseInt(req.query.limit as string) || 50, 200));
     const offset = Math.max(0, parseInt(req.query.offset as string) || 0);
@@ -31,6 +32,7 @@ export function createBundlesRouter(db: DatabaseSync): Router {
   });
 
   router.get("/:id", (req, res) => {
+    const db = getDb();
     const id = parseInt(req.params.id as string);
     const bundle = db.prepare("SELECT * FROM bundles WHERE id = ?").get(id) as
       | Record<string, unknown>
@@ -49,6 +51,7 @@ export function createBundlesRouter(db: DatabaseSync): Router {
   });
 
   router.post("/", upload.single("image"), (req, res) => {
+    const db = getDb();
     const { title, description } = req.body;
     let items: Array<{
       title: string;
@@ -106,6 +109,7 @@ export function createBundlesRouter(db: DatabaseSync): Router {
   });
 
   router.put("/:id", upload.single("image"), (req, res) => {
+    const db = getDb();
     const id = parseInt(req.params.id as string);
     const existing = db
       .prepare("SELECT * FROM bundles WHERE id = ?")
@@ -171,6 +175,7 @@ export function createBundlesRouter(db: DatabaseSync): Router {
   });
 
   router.delete("/:id", (req, res) => {
+    const db = getDb();
     const id = parseInt(req.params.id as string);
     const existing = db
       .prepare("SELECT * FROM bundles WHERE id = ?")
