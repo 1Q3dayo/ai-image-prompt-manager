@@ -29,8 +29,32 @@ export function PromptManager() {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [imageSize, setImageSize] = useState<ImageSize>("sm");
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => {
+    try {
+      const stored = localStorage.getItem("pm_viewMode");
+      return stored === "grid" || stored === "list" ? stored : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const [imageSize, setImageSizeState] = useState<ImageSize>(() => {
+    try {
+      const stored = localStorage.getItem("pm_imageSize");
+      return stored === "sm" || stored === "md" || stored === "lg" ? stored : "sm";
+    } catch {
+      return "sm";
+    }
+  });
+
+  const setViewMode = useCallback((mode: ViewMode) => {
+    setViewModeState(mode);
+    try { localStorage.setItem("pm_viewMode", mode); } catch { /* noop */ }
+  }, []);
+
+  const setImageSize = useCallback((size: ImageSize) => {
+    setImageSizeState(size);
+    try { localStorage.setItem("pm_imageSize", size); } catch { /* noop */ }
+  }, []);
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);

@@ -16,4 +16,5 @@ export interface PromptSet {
   title: string;
   prompt: string;
   hasBreak: boolean;
+  sourcePromptId?: number;
 }
