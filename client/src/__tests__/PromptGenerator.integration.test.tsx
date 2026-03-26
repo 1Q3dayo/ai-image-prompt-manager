@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PromptGenerator } from "../components/prompt-generator/PromptGenerator";
+import { GeneratorProvider } from "../contexts/GeneratorContext";
 
 const mockFetchBundles = vi.fn();
 const mockFetchBundle = vi.fn();
@@ -46,7 +47,7 @@ describe("PromptGenerator 統合テスト", () => {
     });
 
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    render(<GeneratorProvider><PromptGenerator /></GeneratorProvider>);
 
     // 初期入力があることを確認
     const set0 = screen.getByTestId("input-set-0");
@@ -103,7 +104,7 @@ describe("PromptGenerator 統合テスト", () => {
     });
 
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    render(<GeneratorProvider><PromptGenerator /></GeneratorProvider>);
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("プロンプト"), "something");

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { usePromptSets } from "../../hooks/usePromptSets";
+import { useGeneratorContext } from "../../contexts/GeneratorContext";
 import { InputColumn } from "./InputColumn";
 import { HumanReadableColumn } from "./HumanReadableColumn";
 import { AiReadyColumn } from "./AiReadyColumn";
@@ -21,7 +21,7 @@ export function PromptGenerator() {
     loadSets,
     humanReadableText,
     aiReadyText,
-  } = usePromptSets();
+  } = useGeneratorContext();
 
   const [saveTargetId, setSaveTargetId] = useState<string | null>(null);
   const [loadTargetId, setLoadTargetId] = useState<string | null>(null);

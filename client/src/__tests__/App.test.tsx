@@ -47,10 +47,10 @@ describe("App", () => {
     );
 
     expect(screen.getByTestId("manager-panel")).toBeVisible();
-    expect(screen.queryByTestId("generator-panel")).not.toBeInTheDocument();
+    expect(screen.getByTestId("generator-panel")).not.toBeVisible();
   });
 
-  it("非アクティブパネルはDOMに存在しない（遅延レンダリング）", async () => {
+  it("非アクティブパネルはDOMに存在しない（遅延レンダリング）、keepMountedタブは非表示で残る", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -58,7 +58,7 @@ describe("App", () => {
       screen.getByRole("tab", { name: "プロンプトマネージャ" }),
     );
 
-    expect(screen.queryByTestId("generator-panel")).not.toBeInTheDocument();
+    expect(screen.getByTestId("generator-panel")).not.toBeVisible();
     expect(screen.getByTestId("manager-panel")).toBeInTheDocument();
     expect(screen.queryByTestId("admin-panel")).not.toBeInTheDocument();
   });
@@ -83,7 +83,7 @@ describe("App", () => {
     expect(managerTab).toHaveAttribute("aria-selected", "true");
   });
 
-  it("アクティブタブのパネルのみDOMに存在する", async () => {
+  it("アクティブタブのパネルのみ表示され、keepMountedタブはDOMに残るが非表示", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -92,6 +92,10 @@ describe("App", () => {
     const panels = screen.getAllByRole("tabpanel");
     expect(panels).toHaveLength(1);
     expect(panels[0]).toHaveAttribute("id", "tabpanel-admin");
+
+    const generatorPanel = document.getElementById("tabpanel-generator");
+    expect(generatorPanel).toBeInTheDocument();
+    expect(generatorPanel).not.toBeVisible();
   });
 
   it("aria-controlsとaria-labelledbyが正しく紐づく", () => {
