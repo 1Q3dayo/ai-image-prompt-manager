@@ -155,6 +155,7 @@ export async function updateBundle(
   data: {
     title?: string;
     description?: string;
+    items?: Array<{ title: string; prompt: string; has_break: boolean }>;
     image?: File;
   },
 ): Promise<Bundle> {
@@ -162,6 +163,7 @@ export async function updateBundle(
   if (data.title !== undefined) form.append("title", data.title);
   if (data.description !== undefined)
     form.append("description", data.description);
+  if (data.items !== undefined) form.append("items", JSON.stringify(data.items));
   if (data.image) form.append("image", data.image);
   const res = await fetch(`${BASE_URL}/bundles/${id}`, {
     method: "PUT",

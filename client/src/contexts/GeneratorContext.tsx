@@ -31,11 +31,17 @@ export function useGeneratorContext() {
 
 export function GeneratorProvider({ children }: { children: ReactNode }) {
   const promptSets = usePromptSets();
+  const {
+    appendSet,
+    loadSets,
+    patchSet,
+    clearSets: clearSetsBase,
+  } = promptSets;
   const [sourceBundleId, setSourceBundleId] = useState<number | null>(null);
 
   const appendPromptToSets = useCallback(
     (prompt: Prompt) => {
-      promptSets.appendSet({
+      appendSet({
         id: crypto.randomUUID(),
         title: prompt.title,
         prompt: prompt.prompt,
@@ -43,7 +49,7 @@ export function GeneratorProvider({ children }: { children: ReactNode }) {
         sourcePromptId: prompt.id,
       });
     },
-    [promptSets.appendSet],
+    [appendSet],
   );
 
   const replaceSetsFromBundle = useCallback(
@@ -54,23 +60,23 @@ export function GeneratorProvider({ children }: { children: ReactNode }) {
         prompt: item.prompt,
         hasBreak: item.has_break === 1,
       }));
-      promptSets.loadSets(newSets);
+      loadSets(newSets);
       setSourceBundleId(bundle.id);
     },
-    [promptSets.loadSets],
+    [loadSets],
   );
 
   const updateSetSource = useCallback(
     (id: string, sourcePromptId: number) => {
-      promptSets.patchSet(id, { sourcePromptId });
+      patchSet(id, { sourcePromptId });
     },
-    [promptSets.patchSet],
+    [patchSet],
   );
 
   const clearSets = useCallback(() => {
-    promptSets.clearSets();
+    clearSetsBase();
     setSourceBundleId(null);
-  }, [promptSets.clearSets]);
+  }, [clearSetsBase]);
 
   return (
     <GeneratorContext.Provider

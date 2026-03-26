@@ -5,10 +5,12 @@ import { BundleEditDialog } from "../components/prompt-manager/BundleEditDialog"
 
 const mockFetchBundle = vi.fn();
 const mockUpdateBundle = vi.fn();
+const mockSaveBundle = vi.fn();
 
 vi.mock("../hooks/useApi", () => ({
   fetchBundle: (...args: unknown[]) => mockFetchBundle(...args),
   updateBundle: (...args: unknown[]) => mockUpdateBundle(...args),
+  saveBundle: (...args: unknown[]) => mockSaveBundle(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
 }));
 
@@ -142,6 +144,31 @@ describe("BundleEditDialog", () => {
         "保存失敗",
       );
     });
+  });
+
+  it("新規保存でsaveBundleが呼ばれる", async () => {
+    mockSaveBundle.mockResolvedValue(sampleBundle);
+    const user = userEvent.setup();
+    render(<BundleEditDialog {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-bundle-title-input")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("edit-bundle-save-new"));
+
+    await waitFor(() => {
+      expect(defaultProps.onSaved).toHaveBeenCalled();
+    });
+    expect(mockSaveBundle).toHaveBeenCalledWith({
+      title: "テストバンドル",
+      description: "テスト説明",
+      items: [
+        { title: "プロンプト1", prompt: "prompt1", has_break: false },
+        { title: "プロンプト2", prompt: "prompt2", has_break: true },
+      ],
+    });
+    expect(mockUpdateBundle).not.toHaveBeenCalled();
   });
 
   it("キャンセルでonCloseが呼ばれる", async () => {

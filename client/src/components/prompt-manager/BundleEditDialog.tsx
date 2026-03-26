@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   fetchBundle,
   updateBundle,
+  saveBundle,
   getImageUrl,
   type Bundle,
 } from "../../hooks/useApi";
@@ -19,7 +20,8 @@ export function BundleEditDialog({
 }: BundleEditDialogProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
+  const saving = savingAction !== null;
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -50,16 +52,22 @@ export function BundleEditDialog({
     };
   }, [bundleId]);
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      setError("タイトルは必須です");
-      return;
-    }
-    if (!description.trim()) {
-      setError("説明文は必須です");
-      return;
-    }
-    setSaving(true);
+  const validate = () => {
+    if (!title.trim()) { setError("タイトルは必須です"); return false; }
+    if (!description.trim()) { setError("説明文は必須です"); return false; }
+    return true;
+  };
+
+  const getItemsData = () =>
+    items.map((item) => ({
+      title: item.title,
+      prompt: item.prompt,
+      has_break: item.has_break === 1,
+    }));
+
+  const handleUpdate = async () => {
+    if (!validate()) return;
+    setSavingAction("update");
     setError("");
     try {
       await updateBundle(bundleId, {
@@ -70,7 +78,25 @@ export function BundleEditDialog({
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
-      setSaving(false);
+      setSavingAction(null);
+    }
+  };
+
+  const handleSaveAsNew = async () => {
+    if (!validate()) return;
+    setSavingAction("new");
+    setError("");
+    try {
+      await saveBundle({
+        title: title.trim(),
+        description: description.trim(),
+        items: getItemsData(),
+        ...(newImage ? { image: newImage } : {}),
+      });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました");
+      setSavingAction(null);
     }
   };
 
@@ -146,6 +172,9 @@ export function BundleEditDialog({
                   className="w-20 h-20 object-cover rounded"
                   data-testid="edit-bundle-current-image"
                 />
+                <p className="text-xs text-gray-400 mt-1">
+                  ※ 新規保存時は画像が引き継がれません
+                </p>
               </div>
             )}
 
@@ -203,12 +232,20 @@ export function BundleEditDialog({
             キャンセル
           </button>
           <button
-            onClick={handleSave}
+            onClick={handleSaveAsNew}
+            disabled={saving || loading || loadError}
+            className="px-4 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50"
+            data-testid="edit-bundle-save-new"
+          >
+            {savingAction === "new" ? "保存中..." : "新規保存"}
+          </button>
+          <button
+            onClick={handleUpdate}
             disabled={saving || loading || loadError}
             className="px-4 py-2 text-sm text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50"
             data-testid="edit-bundle-save"
           >
-            {saving ? "保存中..." : "保存"}
+            {savingAction === "update" ? "保存中..." : "上書き保存"}
           </button>
         </div>
       </div>

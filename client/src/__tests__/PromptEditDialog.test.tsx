@@ -5,10 +5,12 @@ import { PromptEditDialog } from "../components/prompt-manager/PromptEditDialog"
 
 const mockFetchPrompt = vi.fn();
 const mockUpdatePrompt = vi.fn();
+const mockSavePrompt = vi.fn();
 
 vi.mock("../hooks/useApi", () => ({
   fetchPrompt: (...args: unknown[]) => mockFetchPrompt(...args),
   updatePrompt: (...args: unknown[]) => mockUpdatePrompt(...args),
+  savePrompt: (...args: unknown[]) => mockSavePrompt(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
 }));
 
@@ -169,6 +171,29 @@ describe("PromptEditDialog", () => {
       );
     });
     expect(screen.getByTestId("edit-prompt-save")).not.toBeDisabled();
+  });
+
+  it("新規保存でsavePromptが呼ばれる", async () => {
+    mockSavePrompt.mockResolvedValue(samplePrompt);
+    const user = userEvent.setup();
+    render(<PromptEditDialog {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-title-input")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("edit-prompt-save-new"));
+
+    await waitFor(() => {
+      expect(defaultProps.onSaved).toHaveBeenCalled();
+    });
+    expect(mockSavePrompt).toHaveBeenCalledWith({
+      title: "テストプロンプト",
+      prompt: "test prompt text",
+      has_break: false,
+      description: "テスト説明",
+    });
+    expect(mockUpdatePrompt).not.toHaveBeenCalled();
   });
 
   it("キャンセルでonCloseが呼ばれる", async () => {

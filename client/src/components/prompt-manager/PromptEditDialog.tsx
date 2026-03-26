@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   fetchPrompt,
   updatePrompt,
+  savePrompt,
   getImageUrl,
   type Prompt,
 } from "../../hooks/useApi";
@@ -19,7 +20,8 @@ export function PromptEditDialog({
 }: PromptEditDialogProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
+  const saving = savingAction !== null;
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -52,33 +54,44 @@ export function PromptEditDialog({
     };
   }, [promptId]);
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      setError("タイトルは必須です");
-      return;
-    }
-    if (!prompt.trim()) {
-      setError("プロンプトは必須です");
-      return;
-    }
-    if (!description.trim()) {
-      setError("説明文は必須です");
-      return;
-    }
-    setSaving(true);
+  const validate = () => {
+    if (!title.trim()) { setError("タイトルは必須です"); return false; }
+    if (!prompt.trim()) { setError("プロンプトは必須です"); return false; }
+    if (!description.trim()) { setError("説明文は必須です"); return false; }
+    return true;
+  };
+
+  const getData = () => ({
+    title: title.trim(),
+    prompt: prompt.trim(),
+    has_break: hasBreak,
+    description: description.trim(),
+    ...(newImage ? { image: newImage } : {}),
+  });
+
+  const handleUpdate = async () => {
+    if (!validate()) return;
+    setSavingAction("update");
     setError("");
     try {
-      await updatePrompt(promptId, {
-        title: title.trim(),
-        prompt: prompt.trim(),
-        has_break: hasBreak,
-        description: description.trim(),
-        ...(newImage ? { image: newImage } : {}),
-      });
+      await updatePrompt(promptId, getData());
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
-      setSaving(false);
+      setSavingAction(null);
+    }
+  };
+
+  const handleSaveAsNew = async () => {
+    if (!validate()) return;
+    setSavingAction("new");
+    setError("");
+    try {
+      await savePrompt(getData());
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました");
+      setSavingAction(null);
     }
   };
 
@@ -188,6 +201,9 @@ export function PromptEditDialog({
                   className="w-20 h-20 object-cover rounded"
                   data-testid="edit-current-image"
                 />
+                <p className="text-xs text-gray-400 mt-1">
+                  ※ 新規保存時は画像が引き継がれません
+                </p>
               </div>
             )}
 
@@ -226,12 +242,20 @@ export function PromptEditDialog({
             キャンセル
           </button>
           <button
-            onClick={handleSave}
+            onClick={handleSaveAsNew}
+            disabled={saving || loading || loadError}
+            className="px-4 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50"
+            data-testid="edit-prompt-save-new"
+          >
+            {savingAction === "new" ? "保存中..." : "新規保存"}
+          </button>
+          <button
+            onClick={handleUpdate}
             disabled={saving || loading || loadError}
             className="px-4 py-2 text-sm text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50"
             data-testid="edit-prompt-save"
           >
-            {saving ? "保存中..." : "保存"}
+            {savingAction === "update" ? "保存中..." : "上書き保存"}
           </button>
         </div>
       </div>
