@@ -2,11 +2,12 @@ import { getImageUrl, type BundleSummary } from "../../hooks/useApi";
 
 interface BundleGridCardProps {
   bundle: BundleSummary;
+  onOpen?: (id: number, title: string) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function BundleGridCard({ bundle, onEdit, onDelete }: BundleGridCardProps) {
+export function BundleGridCard({ bundle, onOpen, onEdit, onDelete }: BundleGridCardProps) {
   return (
     <div
       className="border border-gray-200 rounded-lg overflow-hidden"
@@ -38,6 +39,15 @@ export function BundleGridCard({ bundle, onEdit, onDelete }: BundleGridCardProps
           {new Date(bundle.updated_at).toLocaleDateString("ja-JP")}
         </span>
         <div className="flex gap-1">
+          {onOpen && (
+            <button
+              onClick={() => onOpen(bundle.id, bundle.title)}
+              className="px-1.5 py-0.5 text-xs text-teal-600 border border-teal-300 rounded hover:bg-teal-50"
+              aria-label={`${bundle.title}を開く`}
+            >
+              開く
+            </button>
+          )}
           <button
             onClick={() => onEdit(bundle.id)}
             className="px-1.5 py-0.5 text-xs text-blue-600 border border-blue-300 rounded hover:bg-blue-50"

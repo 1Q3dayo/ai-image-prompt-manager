@@ -58,7 +58,7 @@ describe("DeleteConfirmDialog", () => {
     await user.click(screen.getByTestId("delete-dialog-confirm"));
     expect(screen.getByTestId("delete-dialog-confirm")).toBeDisabled();
     expect(screen.getByTestId("delete-dialog-confirm")).toHaveTextContent(
-      "削除中...",
+      "処理中...",
     );
 
     resolveDelete!();

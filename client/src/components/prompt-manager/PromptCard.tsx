@@ -10,11 +10,12 @@ const LIST_IMAGE_SIZE: Record<ImageSize, string> = {
 interface PromptCardProps {
   prompt: Prompt;
   imageSize?: ImageSize;
+  onOpen?: (prompt: Prompt) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function PromptCard({ prompt, imageSize = "sm", onEdit, onDelete }: PromptCardProps) {
+export function PromptCard({ prompt, imageSize = "sm", onOpen, onEdit, onDelete }: PromptCardProps) {
   const sizeClass = LIST_IMAGE_SIZE[imageSize];
 
   return (
@@ -52,6 +53,15 @@ export function PromptCard({ prompt, imageSize = "sm", onEdit, onDelete }: Promp
         <span className="text-xs text-gray-400">
           {new Date(prompt.updated_at).toLocaleDateString("ja-JP")}
         </span>
+        {onOpen && (
+          <button
+            onClick={() => onOpen(prompt)}
+            className="px-2 py-1 text-xs text-teal-600 border border-teal-300 rounded hover:bg-teal-50"
+            aria-label={`${prompt.title}を開く`}
+          >
+            開く
+          </button>
+        )}
         <button
           onClick={() => onEdit(prompt.id)}
           className="px-2 py-1 text-xs text-blue-600 border border-blue-300 rounded hover:bg-blue-50"

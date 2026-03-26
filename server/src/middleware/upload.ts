@@ -95,6 +95,26 @@ export function getImageMimeType(imagePath: string): string {
   return "image/jpeg";
 }
 
+export function copyImage(
+  sourceFilename: string,
+  reqOrDataDir?: Request | string,
+): string | null {
+  if (
+    !sourceFilename ||
+    path.basename(sourceFilename) !== sourceFilename ||
+    sourceFilename.includes("..")
+  ) {
+    return null;
+  }
+  const imagesDir = getImagesDir(reqOrDataDir);
+  const sourcePath = path.join(imagesDir, sourceFilename);
+  if (!fs.existsSync(sourcePath)) return null;
+  const ext = path.extname(sourceFilename) || ".avif";
+  const newFilename = `${uuidv4()}${ext}`;
+  fs.copyFileSync(sourcePath, path.join(imagesDir, newFilename));
+  return newFilename;
+}
+
 export function deleteImage(
   imagePath: string | null | undefined,
   reqOrDataDir?: Request | string,

@@ -48,6 +48,20 @@ export function usePromptSets() {
     setSets(newSets.length > 0 ? newSets : [createEmptySet()]);
   }, []);
 
+  const appendSet = useCallback((newSet: PromptSet) => {
+    setSets((prev) => {
+      const isInitial = prev.length === 1 && !prev[0].prompt && !prev[0].title;
+      return isInitial ? [newSet] : [...prev, newSet];
+    });
+  }, []);
+
+  const patchSet = useCallback(
+    (id: string, patch: Partial<Omit<PromptSet, "id">>) => {
+      setSets((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    },
+    [],
+  );
+
   const clearSets = useCallback(() => {
     setSets([createEmptySet()]);
   }, []);
@@ -82,6 +96,8 @@ export function usePromptSets() {
     updateSet,
     moveSet,
     loadSets,
+    appendSet,
+    patchSet,
     clearSets,
     humanReadableText,
     aiReadyText,
