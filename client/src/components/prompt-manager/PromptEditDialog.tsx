@@ -87,7 +87,10 @@ export function PromptEditDialog({
     setSavingAction("new");
     setError("");
     try {
-      await savePrompt(getData());
+      await savePrompt({
+        ...getData(),
+        ...(!newImage && currentImagePath ? { copy_image_from: currentImagePath } : {}),
+      });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
@@ -201,9 +204,6 @@ export function PromptEditDialog({
                   className="w-20 h-20 object-cover rounded"
                   data-testid="edit-current-image"
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  ※ 新規保存時は画像が引き継がれません
-                </p>
               </div>
             )}
 

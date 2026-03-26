@@ -20,6 +20,7 @@ export function SaveDialog({
 }: SaveDialogProps) {
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<File | null>(null);
+  const [sourceImagePath, setSourceImagePath] = useState<string | null>(null);
   const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
   const saving = savingAction !== null;
   const [error, setError] = useState("");
@@ -31,6 +32,7 @@ export function SaveDialog({
     fetchPrompt(sourcePromptId).then((data) => {
       if (cancelled) return;
       if (!description) setDescription(data.description);
+      setSourceImagePath(data.image_path);
     }).catch(() => {});
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,9 +56,13 @@ export function SaveDialog({
     setError("");
     setSavingAction("new");
     try {
-      await savePrompt(getData());
+      await savePrompt({
+        ...getData(),
+        ...(!image && sourceImagePath ? { copy_image_from: sourceImagePath } : {}),
+      });
       setDescription("");
       setImage(null);
+      setSourceImagePath(null);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
@@ -77,6 +83,7 @@ export function SaveDialog({
       await updatePrompt(sourcePromptId, getData());
       setDescription("");
       setImage(null);
+      setSourceImagePath(null);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
@@ -88,6 +95,7 @@ export function SaveDialog({
   const handleClose = () => {
     setDescription("");
     setImage(null);
+    setSourceImagePath(null);
     setError("");
     onClose();
   };

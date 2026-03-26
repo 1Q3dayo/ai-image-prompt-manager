@@ -192,6 +192,7 @@ describe("PromptEditDialog", () => {
       prompt: "test prompt text",
       has_break: false,
       description: "テスト説明",
+      copy_image_from: "test.jpg",
     });
     expect(mockUpdatePrompt).not.toHaveBeenCalled();
   });

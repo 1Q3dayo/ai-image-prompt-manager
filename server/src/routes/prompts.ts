@@ -5,6 +5,7 @@ import {
   deleteImage,
   cleanupUploadedFile,
   saveUploadedImage,
+  copyImage,
 } from "../middleware/upload.js";
 
 export function createPromptsRouter(getDb: () => DatabaseSync): Router {
@@ -64,6 +65,12 @@ export function createPromptsRouter(getDb: () => DatabaseSync): Router {
         imagePath = await saveUploadedImage(req.file, req);
       } catch {
         res.status(400).json({ error: "画像の変換に失敗しました" });
+        return;
+      }
+    } else if (req.body.copy_image_from) {
+      imagePath = copyImage(req.body.copy_image_from, req);
+      if (!imagePath) {
+        res.status(400).json({ error: "画像のコピーに失敗しました" });
         return;
       }
     }

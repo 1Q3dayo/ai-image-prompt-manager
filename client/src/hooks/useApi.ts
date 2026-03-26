@@ -42,6 +42,7 @@ export async function savePrompt(data: {
   has_break: boolean;
   description: string;
   image?: File;
+  copy_image_from?: string;
 }): Promise<Prompt> {
   const form = new FormData();
   form.append("title", data.title);
@@ -49,6 +50,7 @@ export async function savePrompt(data: {
   form.append("has_break", data.has_break ? "true" : "false");
   form.append("description", data.description);
   if (data.image) form.append("image", data.image);
+  else if (data.copy_image_from) form.append("copy_image_from", data.copy_image_from);
   const res = await fetch(`${BASE_URL}/prompts`, {
     method: "POST",
     body: form,
@@ -110,12 +112,14 @@ export async function saveBundle(data: {
   description: string;
   items: Array<{ title: string; prompt: string; has_break: boolean }>;
   image?: File;
+  copy_image_from?: string;
 }): Promise<Bundle> {
   const form = new FormData();
   form.append("title", data.title);
   form.append("description", data.description);
   form.append("items", JSON.stringify(data.items));
   if (data.image) form.append("image", data.image);
+  else if (data.copy_image_from) form.append("copy_image_from", data.copy_image_from);
   const res = await fetch(`${BASE_URL}/bundles`, {
     method: "POST",
     body: form,

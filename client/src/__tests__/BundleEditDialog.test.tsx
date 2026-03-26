@@ -167,6 +167,7 @@ describe("BundleEditDialog", () => {
         { title: "プロンプト1", prompt: "prompt1", has_break: false },
         { title: "プロンプト2", prompt: "prompt2", has_break: true },
       ],
+      copy_image_from: "bundle.jpg",
     });
     expect(mockUpdateBundle).not.toHaveBeenCalled();
   });

@@ -92,6 +92,7 @@ export function BundleEditDialog({
         description: description.trim(),
         items: getItemsData(),
         ...(newImage ? { image: newImage } : {}),
+        ...(!newImage && currentImagePath ? { copy_image_from: currentImagePath } : {}),
       });
       onSaved();
     } catch (e) {
@@ -172,9 +173,6 @@ export function BundleEditDialog({
                   className="w-20 h-20 object-cover rounded"
                   data-testid="edit-bundle-current-image"
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  ※ 新規保存時は画像が引き継がれません
-                </p>
               </div>
             )}
 

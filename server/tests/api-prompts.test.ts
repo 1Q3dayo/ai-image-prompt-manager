@@ -71,6 +71,45 @@ describe("Prompts API", () => {
       expect(fs.existsSync(savedPath)).toBe(true);
       expect(isAvifFile(savedPath)).toBe(true);
     });
+
+    it("copy_image_fromで既存画像をコピーして保存できる", async () => {
+      const pngBuffer = await createTestPngBuffer();
+      const original = await request(app)
+        .post("/api/prompts")
+        .field("title", "元プロンプト")
+        .field("prompt", "original")
+        .field("description", "元の説明")
+        .attach("image", pngBuffer, { filename: "sample.png", contentType: "image/png" });
+
+      const res = await request(app)
+        .post("/api/prompts")
+        .field("title", "コピー")
+        .field("prompt", "copied")
+        .field("description", "コピーの説明")
+        .field("copy_image_from", original.body.image_path);
+
+      expect(res.status).toBe(201);
+      expect(res.body.image_path).toMatch(/\.avif$/);
+      expect(res.body.image_path).not.toBe(original.body.image_path);
+
+      const copiedPath = path.join(tmpDir, "images", res.body.image_path);
+      expect(fs.existsSync(copiedPath)).toBe(true);
+
+      const originalPath = path.join(tmpDir, "images", original.body.image_path);
+      expect(fs.existsSync(originalPath)).toBe(true);
+    });
+
+    it("copy_image_fromに不正なパスを指定すると400エラー", async () => {
+      const res = await request(app)
+        .post("/api/prompts")
+        .field("title", "不正パス")
+        .field("prompt", "test")
+        .field("description", "説明")
+        .field("copy_image_from", "../../../etc/passwd");
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("画像のコピーに失敗しました");
+    });
   });
 
   describe("GET /api/prompts", () => {

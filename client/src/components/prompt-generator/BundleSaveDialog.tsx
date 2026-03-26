@@ -18,6 +18,7 @@ export function BundleSaveDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<File | null>(null);
+  const [sourceImagePath, setSourceImagePath] = useState<string | null>(null);
   const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
   const saving = savingAction !== null;
   const [error, setError] = useState("");
@@ -30,6 +31,7 @@ export function BundleSaveDialog({
       if (cancelled) return;
       if (!title) setTitle(data.title);
       if (!description) setDescription(data.description);
+      setSourceImagePath(data.image_path);
     }).catch(() => {});
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,6 +64,7 @@ export function BundleSaveDialog({
         description: description.trim(),
         items: getItemsData(),
         image: image ?? undefined,
+        ...(!image && sourceImagePath ? { copy_image_from: sourceImagePath } : {}),
       });
       resetAndClose();
     } catch (e) {
@@ -95,6 +98,7 @@ export function BundleSaveDialog({
     setTitle("");
     setDescription("");
     setImage(null);
+    setSourceImagePath(null);
     setError("");
     onClose();
   };
