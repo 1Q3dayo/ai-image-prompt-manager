@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { TabNavigation } from "./components/layout/TabNavigation";
 import { TabPanel } from "./components/layout/TabPanel";
 import { PromptGenerator } from "./components/prompt-generator/PromptGenerator";
@@ -9,6 +9,10 @@ import type { TabId } from "./types";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>("generator");
+
+  const navigateToGenerator = useCallback(() => {
+    setActiveTab("generator");
+  }, []);
 
   return (
     <GeneratorProvider>
@@ -31,7 +35,7 @@ function App() {
 
           <TabPanel tabId="manager" active={activeTab === "manager"}>
             <div data-testid="manager-panel">
-              <PromptManager />
+              <PromptManager onNavigateToGenerator={navigateToGenerator} />
             </div>
           </TabPanel>
 

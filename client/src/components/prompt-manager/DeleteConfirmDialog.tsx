@@ -3,13 +3,22 @@ import { useState } from "react";
 interface DeleteConfirmDialogProps {
   title: string;
   message: string;
+  confirmLabel?: string;
+  confirmColor?: "red" | "teal";
   onConfirm: () => Promise<void>;
   onCancel: () => void;
 }
 
+const CONFIRM_STYLES = {
+  red: "text-white bg-red-500 hover:bg-red-600",
+  teal: "text-white bg-teal-500 hover:bg-teal-600",
+};
+
 export function DeleteConfirmDialog({
   title,
   message,
+  confirmLabel,
+  confirmColor = "red",
   onConfirm,
   onCancel,
 }: DeleteConfirmDialogProps) {
@@ -22,7 +31,7 @@ export function DeleteConfirmDialog({
     try {
       await onConfirm();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "削除に失敗しました");
+      setError(e instanceof Error ? e.message : "処理に失敗しました");
       setDeleting(false);
     }
   };
@@ -61,10 +70,10 @@ export function DeleteConfirmDialog({
           <button
             onClick={handleConfirm}
             disabled={deleting}
-            className="px-4 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-50"
+            className={`px-4 py-2 text-sm rounded-md disabled:opacity-50 ${CONFIRM_STYLES[confirmColor]}`}
             data-testid="delete-dialog-confirm"
           >
-            {deleting ? "削除中..." : "削除"}
+            {deleting ? "処理中..." : (confirmLabel ?? "削除")}
           </button>
         </div>
       </div>

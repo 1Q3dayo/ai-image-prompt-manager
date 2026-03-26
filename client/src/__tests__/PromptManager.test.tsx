@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PromptManager } from "../components/prompt-manager/PromptManager";
+import { GeneratorProvider } from "../contexts/GeneratorContext";
 
 vi.mock("../hooks/useApi", () => ({
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
@@ -24,7 +25,7 @@ vi.mock("../hooks/useApi", () => ({
 
 describe("PromptManager", () => {
   it("セグメントコントロールが表示される", async () => {
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
     expect(screen.getByTestId("segment-control")).toBeInTheDocument();
     expect(screen.getByTestId("segment-prompts")).toBeInTheDocument();
     expect(screen.getByTestId("segment-bundles")).toBeInTheDocument();
@@ -34,7 +35,7 @@ describe("PromptManager", () => {
   });
 
   it("初期状態でプロンプトセグメントがアクティブ", async () => {
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
     expect(screen.getByTestId("segment-prompts")).toHaveClass("bg-blue-600");
     expect(screen.getByTestId("segment-bundles")).not.toHaveClass("bg-blue-600");
     await waitFor(() => {
@@ -44,7 +45,7 @@ describe("PromptManager", () => {
 
   it("バンドルセグメントに切り替えられる", async () => {
     const user = userEvent.setup();
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
 
     await user.click(screen.getByTestId("segment-bundles"));
     expect(screen.getByTestId("segment-bundles")).toHaveClass("bg-blue-600");
@@ -52,7 +53,7 @@ describe("PromptManager", () => {
   });
 
   it("検索入力が表示される", async () => {
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
     expect(screen.getByTestId("manager-search-input")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("prompt-list")).toBeInTheDocument();
@@ -61,7 +62,7 @@ describe("PromptManager", () => {
 
   it("セグメント切替時に検索クエリがクリアされる", async () => {
     const user = userEvent.setup();
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
 
     const input = screen.getByTestId("manager-search-input");
     await user.type(input, "test");
@@ -72,7 +73,7 @@ describe("PromptManager", () => {
   });
 
   it("プロンプトセグメントでプロンプト一覧が表示される", async () => {
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
     await waitFor(() => {
       expect(screen.getByTestId("prompt-list")).toBeInTheDocument();
     });
@@ -80,7 +81,7 @@ describe("PromptManager", () => {
 
   it("バンドルセグメントでバンドル一覧が表示される", async () => {
     const user = userEvent.setup();
-    render(<PromptManager />);
+    render(<GeneratorProvider><PromptManager /></GeneratorProvider>);
 
     await user.click(screen.getByTestId("segment-bundles"));
     await waitFor(() => {

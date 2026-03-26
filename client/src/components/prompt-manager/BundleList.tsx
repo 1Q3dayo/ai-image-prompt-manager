@@ -18,11 +18,12 @@ interface BundleListProps {
   refreshKey?: number;
   viewMode?: ViewMode;
   imageSize?: ImageSize;
+  onOpen?: (id: number, title: string) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function BundleList({ query, refreshKey, viewMode = "list", imageSize = "sm", onEdit, onDelete }: BundleListProps) {
+export function BundleList({ query, refreshKey, viewMode = "list", imageSize = "sm", onOpen, onEdit, onDelete }: BundleListProps) {
   const [results, setResults] = useState<BundleSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -85,6 +86,7 @@ export function BundleList({ query, refreshKey, viewMode = "list", imageSize = "
               key={bundle.id}
               bundle={bundle}
               imageSize={imageSize}
+              onOpen={onOpen}
               onEdit={onEdit}
               onDelete={onDelete}
             />
@@ -97,6 +99,7 @@ export function BundleList({ query, refreshKey, viewMode = "list", imageSize = "
             <BundleGridCard
               key={bundle.id}
               bundle={bundle}
+              onOpen={onOpen}
               onEdit={onEdit}
               onDelete={onDelete}
             />

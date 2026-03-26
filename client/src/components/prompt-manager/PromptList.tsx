@@ -18,11 +18,12 @@ interface PromptListProps {
   refreshKey?: number;
   viewMode?: ViewMode;
   imageSize?: ImageSize;
+  onOpen?: (prompt: Prompt) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "sm", onEdit, onDelete }: PromptListProps) {
+export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "sm", onOpen, onEdit, onDelete }: PromptListProps) {
   const [results, setResults] = useState<Prompt[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -85,6 +86,7 @@ export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "
               key={prompt.id}
               prompt={prompt}
               imageSize={imageSize}
+              onOpen={onOpen}
               onEdit={onEdit}
               onDelete={onDelete}
             />
@@ -97,6 +99,7 @@ export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "
             <PromptGridCard
               key={prompt.id}
               prompt={prompt}
+              onOpen={onOpen}
               onEdit={onEdit}
               onDelete={onDelete}
             />

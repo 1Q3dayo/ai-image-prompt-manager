@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { deletePrompt, deleteBundle } from "../../hooks/useApi";
+import { deletePrompt, deleteBundle, fetchBundle, type Prompt } from "../../hooks/useApi";
+import { useGeneratorContext } from "../../contexts/GeneratorContext";
 import { PromptList } from "./PromptList";
 import { BundleList } from "./BundleList";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
@@ -21,14 +22,25 @@ interface DeleteTarget {
   title: string;
 }
 
-export function PromptManager() {
+interface OpenBundleTarget {
+  id: number;
+  title: string;
+}
+
+interface PromptManagerProps {
+  onNavigateToGenerator?: () => void;
+}
+
+export function PromptManager({ onNavigateToGenerator }: PromptManagerProps) {
   const [segment, setSegment] = useState<Segment>("prompts");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [openBundleTarget, setOpenBundleTarget] = useState<OpenBundleTarget | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { appendPromptToSets, replaceSetsFromBundle } = useGeneratorContext();
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
     try {
       const stored = localStorage.getItem("pm_viewMode");
@@ -73,6 +85,32 @@ export function PromptManager() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  const handleOpenPrompt = useCallback(
+    (prompt: Prompt) => {
+      appendPromptToSets(prompt);
+      onNavigateToGenerator?.();
+    },
+    [appendPromptToSets, onNavigateToGenerator],
+  );
+
+  const handleOpenBundle = useCallback(
+    (id: number, title: string) => {
+      setOpenBundleTarget({ id, title });
+    },
+    [],
+  );
+
+  const handleConfirmOpenBundle = useCallback(
+    async () => {
+      if (!openBundleTarget) return;
+      const bundle = await fetchBundle(openBundleTarget.id);
+      replaceSetsFromBundle(bundle);
+      setOpenBundleTarget(null);
+      onNavigateToGenerator?.();
+    },
+    [openBundleTarget, replaceSetsFromBundle, onNavigateToGenerator],
+  );
 
   const handleSegmentChange = (seg: Segment) => {
     setSegment(seg);
@@ -137,6 +175,7 @@ export function PromptManager() {
           refreshKey={refreshKey}
           viewMode={viewMode}
           imageSize={imageSize}
+          onOpen={handleOpenPrompt}
           onEdit={(id) => setEditTarget({ type: "prompt", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "prompt", id, title })}
         />
@@ -146,6 +185,7 @@ export function PromptManager() {
           refreshKey={refreshKey}
           viewMode={viewMode}
           imageSize={imageSize}
+          onOpen={handleOpenBundle}
           onEdit={(id) => setEditTarget({ type: "bundle", id })}
           onDelete={(id, title) => setDeleteTarget({ type: "bundle", id, title })}
         />
@@ -185,6 +225,16 @@ export function PromptManager() {
             setRefreshKey((k) => k + 1);
           }}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+      {openBundleTarget !== null && (
+        <DeleteConfirmDialog
+          title="バンドルを開く"
+          message={`「${openBundleTarget.title}」をジェネレータで開きますか？現在の入力内容は破棄されます。`}
+          confirmLabel="開く"
+          confirmColor="teal"
+          onConfirm={handleConfirmOpenBundle}
+          onCancel={() => setOpenBundleTarget(null)}
         />
       )}
     </div>
