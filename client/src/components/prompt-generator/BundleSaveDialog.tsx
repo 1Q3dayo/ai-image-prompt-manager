@@ -1,63 +1,97 @@
-import { useState, useRef } from "react";
-import { saveBundle } from "../../hooks/useApi";
+import { useState, useRef, useEffect } from "react";
+import { saveBundle, updateBundle, fetchBundle } from "../../hooks/useApi";
 import type { PromptSet } from "../../types";
 
 interface BundleSaveDialogProps {
   open: boolean;
   onClose: () => void;
   sets: PromptSet[];
+  sourceBundleId?: number | null;
 }
 
 export function BundleSaveDialog({
   open,
   onClose,
   sets,
+  sourceBundleId,
 }: BundleSaveDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
+  const saving = savingAction !== null;
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!open || !sourceBundleId) return;
+    let cancelled = false;
+    fetchBundle(sourceBundleId).then((data) => {
+      if (cancelled) return;
+      if (!title) setTitle(data.title);
+      if (!description) setDescription(data.description);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sourceBundleId]);
+
   if (!open) return null;
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      setError("タイトルは必須です");
-      return;
-    }
-    if (!description.trim()) {
-      setError("説明文は必須です");
-      return;
-    }
+  const getItemsData = () =>
+    sets
+      .filter((s) => s.prompt)
+      .map((s) => ({
+        title: s.title,
+        prompt: s.prompt,
+        has_break: s.hasBreak,
+      }));
+
+  const validate = () => {
+    if (!title.trim()) { setError("タイトルは必須です"); return false; }
+    if (!description.trim()) { setError("説明文は必須です"); return false; }
+    return true;
+  };
+
+  const handleSaveNew = async () => {
+    if (!validate()) return;
     setError("");
-    setSaving(true);
+    setSavingAction("new");
     try {
       await saveBundle({
         title: title.trim(),
         description: description.trim(),
-        items: sets
-          .filter((s) => s.prompt)
-          .map((s) => ({
-            title: s.title,
-            prompt: s.prompt,
-            has_break: s.hasBreak,
-          })),
+        items: getItemsData(),
         image: image ?? undefined,
       });
-      setTitle("");
-      setDescription("");
-      setImage(null);
-      onClose();
+      resetAndClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
     } finally {
-      setSaving(false);
+      setSavingAction(null);
     }
   };
 
-  const handleClose = () => {
+  const handleUpdate = async () => {
+    if (!sourceBundleId) return;
+    if (!validate()) return;
+    setError("");
+    setSavingAction("update");
+    try {
+      await updateBundle(sourceBundleId, {
+        title: title.trim(),
+        description: description.trim(),
+        items: getItemsData(),
+        ...(image ? { image } : {}),
+      });
+      resetAndClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setSavingAction(null);
+    }
+  };
+
+  const resetAndClose = () => {
     setTitle("");
     setDescription("");
     setImage(null);
@@ -68,7 +102,7 @@ export function BundleSaveDialog({
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={handleClose}
+      onClick={saving ? undefined : resetAndClose}
       data-testid="bundle-save-dialog-overlay"
     >
       <div
@@ -140,17 +174,28 @@ export function BundleSaveDialog({
 
         <div className="flex justify-end gap-3 mt-6">
           <button
-            onClick={handleClose}
-            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+            onClick={resetAndClose}
+            disabled={saving}
+            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             キャンセル
           </button>
+          {sourceBundleId && (
+            <button
+              onClick={handleUpdate}
+              disabled={saving}
+              className="px-4 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50"
+              data-testid="bundle-save-overwrite"
+            >
+              {savingAction === "update" ? "保存中..." : "上書き保存"}
+            </button>
+          )}
           <button
-            onClick={handleSave}
+            onClick={handleSaveNew}
             disabled={saving}
             className="px-4 py-2 text-sm text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50"
           >
-            {saving ? "保存中..." : "保存"}
+            {savingAction === "new" ? "保存中..." : (sourceBundleId ? "新規保存" : "保存")}
           </button>
         </div>
       </div>

@@ -7,7 +7,10 @@ import { GeneratorProvider } from "../contexts/GeneratorContext";
 vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
   saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
+  updatePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  updateBundle: vi.fn().mockResolvedValue({ id: 1 }),
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchPrompt: vi.fn().mockResolvedValue({ id: 1, description: "" }),
   fetchBundles: vi.fn().mockResolvedValue({ data: [], total: 0 }),
   fetchBundle: vi.fn().mockResolvedValue({ id: 1, items: [] }),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),

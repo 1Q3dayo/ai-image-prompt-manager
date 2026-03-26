@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { savePrompt } from "../../hooks/useApi";
+import { useState, useRef, useEffect } from "react";
+import { savePrompt, updatePrompt, fetchPrompt } from "../../hooks/useApi";
 
 interface SaveDialogProps {
   open: boolean;
@@ -7,6 +7,7 @@ interface SaveDialogProps {
   title: string;
   prompt: string;
   hasBreak: boolean;
+  sourcePromptId?: number;
 }
 
 export function SaveDialog({
@@ -15,37 +16,72 @@ export function SaveDialog({
   title,
   prompt,
   hasBreak,
+  sourcePromptId,
 }: SaveDialogProps) {
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
+  const saving = savingAction !== null;
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!open || !sourcePromptId) return;
+    let cancelled = false;
+    fetchPrompt(sourcePromptId).then((data) => {
+      if (cancelled) return;
+      if (!description) setDescription(data.description);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sourcePromptId]);
+
   if (!open) return null;
 
-  const handleSave = async () => {
+  const getData = () => ({
+    title,
+    prompt,
+    has_break: hasBreak,
+    description: description.trim(),
+    ...(image ? { image } : {}),
+  });
+
+  const handleSaveNew = async () => {
     if (!description.trim()) {
       setError("説明文は必須です");
       return;
     }
     setError("");
-    setSaving(true);
+    setSavingAction("new");
     try {
-      await savePrompt({
-        title,
-        prompt,
-        has_break: hasBreak,
-        description: description.trim(),
-        image: image ?? undefined,
-      });
+      await savePrompt(getData());
       setDescription("");
       setImage(null);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存に失敗しました");
     } finally {
-      setSaving(false);
+      setSavingAction(null);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!sourcePromptId) return;
+    if (!description.trim()) {
+      setError("説明文は必須です");
+      return;
+    }
+    setError("");
+    setSavingAction("update");
+    try {
+      await updatePrompt(sourcePromptId, getData());
+      setDescription("");
+      setImage(null);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -59,7 +95,7 @@ export function SaveDialog({
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={handleClose}
+      onClick={saving ? undefined : handleClose}
       data-testid="save-dialog-overlay"
     >
       <div
@@ -118,16 +154,27 @@ export function SaveDialog({
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={saving}
+            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             キャンセル
           </button>
+          {sourcePromptId && (
+            <button
+              onClick={handleUpdate}
+              disabled={saving}
+              className="px-4 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50"
+              data-testid="save-overwrite"
+            >
+              {savingAction === "update" ? "保存中..." : "上書き保存"}
+            </button>
+          )}
           <button
-            onClick={handleSave}
+            onClick={handleSaveNew}
             disabled={saving}
             className="px-4 py-2 text-sm text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50"
           >
-            {saving ? "保存中..." : "保存"}
+            {savingAction === "new" ? "保存中..." : (sourcePromptId ? "新規保存" : "保存")}
           </button>
         </div>
       </div>

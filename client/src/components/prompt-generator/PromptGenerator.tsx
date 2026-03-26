@@ -18,9 +18,11 @@ export function PromptGenerator() {
     updateSet,
     moveSet,
     clearSets,
-    loadSets,
     humanReadableText,
     aiReadyText,
+    sourceBundleId,
+    updateSetSource,
+    replaceSetsFromBundle,
   } = useGeneratorContext();
 
   const [saveTargetId, setSaveTargetId] = useState<string | null>(null);
@@ -45,21 +47,16 @@ export function PromptGenerator() {
       updateSet(target.id, "title", prompt.title);
       updateSet(target.id, "prompt", prompt.prompt);
       updateSet(target.id, "hasBreak", prompt.has_break === 1);
+      updateSetSource(target.id, prompt.id);
     },
-    [loadTargetId, sets, updateSet],
+    [loadTargetId, sets, updateSet, updateSetSource],
   );
 
   const handleBundleLoadSelect = useCallback(
     (bundle: Bundle) => {
-      const newSets = (bundle.items ?? []).map((item) => ({
-        id: crypto.randomUUID(),
-        title: item.title,
-        prompt: item.prompt,
-        hasBreak: item.has_break === 1,
-      }));
-      loadSets(newSets);
+      replaceSetsFromBundle(bundle);
     },
-    [loadSets],
+    [replaceSetsFromBundle],
   );
 
   const hasContent = sets.some((s) => s.prompt);
@@ -95,6 +92,7 @@ export function PromptGenerator() {
         title={saveTarget?.title ?? ""}
         prompt={saveTarget?.prompt ?? ""}
         hasBreak={saveTarget?.hasBreak ?? false}
+        sourcePromptId={saveTarget?.sourcePromptId}
       />
 
       <LoadDialog
@@ -107,6 +105,7 @@ export function PromptGenerator() {
         open={bundleSaveOpen}
         onClose={() => setBundleSaveOpen(false)}
         sets={sets}
+        sourceBundleId={sourceBundleId}
       />
 
       <BundleLoadDialog

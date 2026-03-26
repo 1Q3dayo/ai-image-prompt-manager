@@ -10,7 +10,10 @@ const mockFetchBundle = vi.fn();
 vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
   saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
+  updatePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  updateBundle: vi.fn().mockResolvedValue({ id: 1 }),
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchPrompt: vi.fn().mockResolvedValue({ id: 1, description: "" }),
   fetchBundles: (...args: unknown[]) => mockFetchBundles(...args),
   fetchBundle: (...args: unknown[]) => mockFetchBundle(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
