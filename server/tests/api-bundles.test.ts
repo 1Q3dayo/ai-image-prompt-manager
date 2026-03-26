@@ -126,6 +126,18 @@ describe("Bundles API", () => {
       const originalPath = path.join(tmpDir, "images", original.body.image_path);
       expect(fs.existsSync(originalPath)).toBe(true);
     });
+
+    it("copy_image_fromに不正なパスを指定すると400エラー", async () => {
+      const res = await request(app)
+        .post("/api/bundles")
+        .field("title", "不正パス")
+        .field("description", "説明")
+        .field("items", JSON.stringify([]))
+        .field("copy_image_from", "../../../etc/passwd");
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("画像のコピーに失敗しました");
+    });
   });
 
   describe("GET /api/bundles", () => {

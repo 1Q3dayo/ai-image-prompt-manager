@@ -87,7 +87,12 @@ export function createBundlesRouter(getDb: () => DatabaseSync): Router {
         return;
       }
     } else if (req.body.copy_image_from) {
-      imagePath = copyImage(req.body.copy_image_from, req);
+      try {
+        imagePath = copyImage(req.body.copy_image_from, req);
+      } catch {
+        res.status(500).json({ error: "画像のコピー中にエラーが発生しました" });
+        return;
+      }
       if (!imagePath) {
         res.status(400).json({ error: "画像のコピーに失敗しました" });
         return;

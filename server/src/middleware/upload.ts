@@ -111,11 +111,7 @@ export function copyImage(
   if (!fs.existsSync(sourcePath)) return null;
   const ext = path.extname(sourceFilename) || ".avif";
   const newFilename = `${uuidv4()}${ext}`;
-  try {
-    fs.copyFileSync(sourcePath, path.join(imagesDir, newFilename));
-  } catch {
-    return null;
-  }
+  fs.copyFileSync(sourcePath, path.join(imagesDir, newFilename));
   return newFilename;
 }
 
