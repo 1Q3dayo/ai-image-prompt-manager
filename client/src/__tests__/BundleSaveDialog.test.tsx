@@ -4,9 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { BundleSaveDialog } from "../components/prompt-generator/BundleSaveDialog";
 
 const mockSaveBundle = vi.fn();
+const mockUpdateBundle = vi.fn();
+const mockFetchBundle = vi.fn();
 
 vi.mock("../hooks/useApi", () => ({
   saveBundle: (...args: unknown[]) => mockSaveBundle(...args),
+  updateBundle: (...args: unknown[]) => mockUpdateBundle(...args),
+  fetchBundle: (...args: unknown[]) => mockFetchBundle(...args),
 }));
 
 describe("BundleSaveDialog", () => {
@@ -25,6 +29,8 @@ describe("BundleSaveDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSaveBundle.mockResolvedValue({ id: 1 });
+    mockUpdateBundle.mockResolvedValue({ id: 1 });
+    mockFetchBundle.mockResolvedValue({ id: 1, title: "既存タイトル", description: "既存説明", items: [] });
   });
 
   it("open=falseのとき何も表示しない", () => {

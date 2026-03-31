@@ -2,25 +2,37 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PromptGenerator } from "../components/prompt-generator/PromptGenerator";
+import { GeneratorProvider } from "../contexts/GeneratorContext";
 
 vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
   saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
+  updatePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  updateBundle: vi.fn().mockResolvedValue({ id: 1 }),
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchPrompt: vi.fn().mockResolvedValue({ id: 1, description: "" }),
   fetchBundles: vi.fn().mockResolvedValue({ data: [], total: 0 }),
   fetchBundle: vi.fn().mockResolvedValue({ id: 1, items: [] }),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
 }));
 
+function renderGenerator() {
+  return render(
+    <GeneratorProvider>
+      <PromptGenerator />
+    </GeneratorProvider>,
+  );
+}
+
 describe("PromptGenerator", () => {
   it("初期状態で入力セットが1つ表示される", () => {
-    render(<PromptGenerator />);
+    renderGenerator();
     expect(screen.getByTestId("input-set-0")).toBeInTheDocument();
   });
 
   it("セット追加ボタンでセットが増える", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     await user.click(screen.getByText("+ セット追加"));
     expect(screen.getByTestId("input-set-1")).toBeInTheDocument();
@@ -28,7 +40,7 @@ describe("PromptGenerator", () => {
 
   it("削除ボタンでセットが減る", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     await user.click(screen.getByText("+ セット追加"));
     expect(screen.getByTestId("input-set-1")).toBeInTheDocument();
@@ -40,7 +52,7 @@ describe("PromptGenerator", () => {
 
   it("タイトルとプロンプトを入力すると中央カラムに反映される", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("タイトル"), "背景");
@@ -53,7 +65,7 @@ describe("PromptGenerator", () => {
 
   it("プロンプトを入力すると右カラムに反映される", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("プロンプト"), "test prompt");
@@ -64,7 +76,7 @@ describe("PromptGenerator", () => {
 
   it("BREAKチェックで中央・右カラムにBREAKが表示される", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("プロンプト"), "test");
@@ -78,7 +90,7 @@ describe("PromptGenerator", () => {
 
   it("クリアボタンで全セットがリセットされる", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("タイトル"), "テスト");
@@ -93,7 +105,7 @@ describe("PromptGenerator", () => {
 
   it("並び替え（上移動）でセットの順序が変わる", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     await user.click(screen.getByText("+ セット追加"));
 
@@ -109,7 +121,7 @@ describe("PromptGenerator", () => {
   });
 
   it("3カラムレイアウトの各カラムヘッダーが表示される", () => {
-    render(<PromptGenerator />);
+    renderGenerator();
     expect(screen.getByText("入力")).toBeInTheDocument();
     expect(screen.getByText("人間用表示")).toBeInTheDocument();
     expect(screen.getByText("AI用表示")).toBeInTheDocument();
@@ -117,7 +129,7 @@ describe("PromptGenerator", () => {
 
   it("保存ボタンでSaveDialogが開く", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("タイトル"), "テスト");
@@ -129,7 +141,7 @@ describe("PromptGenerator", () => {
 
   it("呼び出しボタンでLoadDialogが開く", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.click(within(set0).getByLabelText("セット1に呼び出し"));
@@ -140,14 +152,14 @@ describe("PromptGenerator", () => {
   });
 
   it("全体保存ボタンと全体呼び出しボタンが表示される", () => {
-    render(<PromptGenerator />);
+    renderGenerator();
     expect(screen.getByText("全体保存")).toBeInTheDocument();
     expect(screen.getByText("全体呼び出し")).toBeInTheDocument();
   });
 
   it("全体保存ボタンでBundleSaveDialogが開く", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("プロンプト"), "test");
@@ -158,7 +170,7 @@ describe("PromptGenerator", () => {
 
   it("全体呼び出しボタンでBundleLoadDialogが開く", async () => {
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    renderGenerator();
 
     await user.click(screen.getByText("全体呼び出し"));
 

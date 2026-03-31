@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PromptGenerator } from "../components/prompt-generator/PromptGenerator";
+import { GeneratorProvider } from "../contexts/GeneratorContext";
 
 const mockFetchBundles = vi.fn();
 const mockFetchBundle = vi.fn();
@@ -9,7 +10,10 @@ const mockFetchBundle = vi.fn();
 vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
   saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
+  updatePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  updateBundle: vi.fn().mockResolvedValue({ id: 1 }),
   fetchPrompts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  fetchPrompt: vi.fn().mockResolvedValue({ id: 1, description: "" }),
   fetchBundles: (...args: unknown[]) => mockFetchBundles(...args),
   fetchBundle: (...args: unknown[]) => mockFetchBundle(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
@@ -46,7 +50,7 @@ describe("PromptGenerator 統合テスト", () => {
     });
 
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    render(<GeneratorProvider><PromptGenerator /></GeneratorProvider>);
 
     // 初期入力があることを確認
     const set0 = screen.getByTestId("input-set-0");
@@ -103,7 +107,7 @@ describe("PromptGenerator 統合テスト", () => {
     });
 
     const user = userEvent.setup();
-    render(<PromptGenerator />);
+    render(<GeneratorProvider><PromptGenerator /></GeneratorProvider>);
 
     const set0 = screen.getByTestId("input-set-0");
     await user.type(within(set0).getByLabelText("プロンプト"), "something");

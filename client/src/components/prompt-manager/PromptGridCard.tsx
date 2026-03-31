@@ -2,11 +2,12 @@ import { getImageUrl, type Prompt } from "../../hooks/useApi";
 
 interface PromptGridCardProps {
   prompt: Prompt;
+  onOpen?: (prompt: Prompt) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function PromptGridCard({ prompt, onEdit, onDelete }: PromptGridCardProps) {
+export function PromptGridCard({ prompt, onOpen, onEdit, onDelete }: PromptGridCardProps) {
   return (
     <div
       className="border border-gray-200 rounded-lg overflow-hidden"
@@ -37,6 +38,15 @@ export function PromptGridCard({ prompt, onEdit, onDelete }: PromptGridCardProps
           {new Date(prompt.updated_at).toLocaleDateString("ja-JP")}
         </span>
         <div className="flex gap-1">
+          {onOpen && (
+            <button
+              onClick={() => onOpen(prompt)}
+              className="px-1.5 py-0.5 text-xs text-teal-600 border border-teal-300 rounded hover:bg-teal-50"
+              aria-label={`${prompt.title}を開く`}
+            >
+              開く
+            </button>
+          )}
           <button
             onClick={() => onEdit(prompt.id)}
             className="px-1.5 py-0.5 text-xs text-blue-600 border border-blue-300 rounded hover:bg-blue-50"

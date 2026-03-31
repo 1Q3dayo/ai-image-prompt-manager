@@ -10,11 +10,12 @@ const LIST_IMAGE_SIZE: Record<ImageSize, string> = {
 interface BundleCardProps {
   bundle: BundleSummary;
   imageSize?: ImageSize;
+  onOpen?: (id: number, title: string) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number, title: string) => void;
 }
 
-export function BundleCard({ bundle, imageSize = "sm", onEdit, onDelete }: BundleCardProps) {
+export function BundleCard({ bundle, imageSize = "sm", onOpen, onEdit, onDelete }: BundleCardProps) {
   const sizeClass = LIST_IMAGE_SIZE[imageSize];
 
   return (
@@ -52,6 +53,15 @@ export function BundleCard({ bundle, imageSize = "sm", onEdit, onDelete }: Bundl
         <span className="text-xs text-gray-400">
           {new Date(bundle.updated_at).toLocaleDateString("ja-JP")}
         </span>
+        {onOpen && (
+          <button
+            onClick={() => onOpen(bundle.id, bundle.title)}
+            className="px-2 py-1 text-xs text-teal-600 border border-teal-300 rounded hover:bg-teal-50"
+            aria-label={`${bundle.title}を開く`}
+          >
+            開く
+          </button>
+        )}
         <button
           onClick={() => onEdit(bundle.id)}
           className="px-2 py-1 text-xs text-blue-600 border border-blue-300 rounded hover:bg-blue-50"

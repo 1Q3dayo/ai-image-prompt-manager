@@ -5,6 +5,8 @@ import { SaveDialog } from "../components/prompt-generator/SaveDialog";
 
 vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  updatePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  fetchPrompt: vi.fn().mockResolvedValue({ id: 1, description: "既存の説明" }),
 }));
 
 describe("SaveDialog", () => {
