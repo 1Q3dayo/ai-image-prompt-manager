@@ -25,6 +25,7 @@ vi.mock("../hooks/useApi", () => ({
   saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
   fetchTagKeys: vi.fn().mockResolvedValue([]),
   fetchTagValues: vi.fn().mockResolvedValue([]),
+  fetchTagSuggestions: vi.fn().mockResolvedValue([]),
 }));
 
 describe("PromptManager", () => {

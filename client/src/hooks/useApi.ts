@@ -380,12 +380,14 @@ export interface TagSuggestion extends Tag {
 export async function fetchTagSuggestions(
   type: "prompts" | "bundles",
   selectedValueIds: number[] = [],
+  query = "",
 ): Promise<TagSuggestion[]> {
   const params = new URLSearchParams();
   params.set("type", type);
   if (selectedValueIds.length > 0) {
     params.set("selected", selectedValueIds.join(","));
   }
+  if (query) params.set("q", query);
   const res = await fetch(`${BASE_URL}/tags/suggestions?${params}`);
   if (!res.ok) throw new Error("タグ候補の取得に失敗しました");
   return res.json();

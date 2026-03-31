@@ -254,6 +254,7 @@ export function createTagsRouter(getDb: () => DatabaseSync): Router {
     const db = getDb();
     const type = (req.query.type as string) || "prompts";
     const selected = (req.query.selected as string) || "";
+    const q = ((req.query.q as string) || "").trim();
 
     if (type !== "prompts" && type !== "bundles") {
       res.status(400).json({ error: "typeはpromptsまたはbundlesです" });
@@ -269,13 +270,24 @@ export function createTagsRouter(getDb: () => DatabaseSync): Router {
       : [];
 
     let entityFilter = "";
-    const filterParams: number[] = [];
+    const filterParams: (number | string)[] = [];
+
+    if (q) {
+      const likePattern = `%${q}%`;
+      if (type === "prompts") {
+        entityFilter += " AND (e.title LIKE ? OR e.prompt LIKE ? OR e.description LIKE ?)";
+        filterParams.push(likePattern, likePattern, likePattern);
+      } else {
+        entityFilter += " AND (e.title LIKE ? OR e.description LIKE ?)";
+        filterParams.push(likePattern, likePattern);
+      }
+    }
 
     if (selectedIds.length > 0) {
       const existsClauses = selectedIds.map(
         () => `AND EXISTS (SELECT 1 FROM ${table} st WHERE st.${idCol} = e.id AND st.tag_value_id = ?)`,
       );
-      entityFilter = existsClauses.join(" ");
+      entityFilter += existsClauses.join(" ");
       filterParams.push(...selectedIds);
     }
 

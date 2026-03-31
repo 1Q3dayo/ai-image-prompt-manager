@@ -32,6 +32,18 @@ export function BundleGridCard({ bundle, onOpen, onEdit, onDelete }: BundleGridC
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-2">
           <p className="text-white text-sm font-medium truncate">{bundle.title}</p>
           <p className="text-white/70 text-xs">{bundle.item_count}件</p>
+          {bundle.tags && bundle.tags.length > 0 && (
+            <div className="flex gap-1 mt-0.5">
+              {bundle.tags.slice(0, 2).map((tag) => (
+                <span key={`${tag.key_id}-${tag.value_id}`} className="px-1 text-[10px] bg-white/20 text-white rounded">
+                  {tag.key_name}:{tag.value}
+                </span>
+              ))}
+              {bundle.tags.length > 2 && (
+                <span className="text-[10px] text-white/60">+{bundle.tags.length - 2}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center justify-between px-2 py-1.5 bg-white">

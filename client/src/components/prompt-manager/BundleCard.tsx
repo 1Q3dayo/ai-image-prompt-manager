@@ -48,6 +48,18 @@ export function BundleCard({ bundle, imageSize = "sm", onOpen, onEdit, onDelete 
         <p className="text-xs text-gray-400 mt-0.5">
           {bundle.item_count}件のプロンプト
         </p>
+        {bundle.tags && bundle.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {bundle.tags.slice(0, 3).map((tag) => (
+              <span key={`${tag.key_id}-${tag.value_id}`} className="px-1.5 py-0 text-[10px] bg-blue-50 text-blue-600 rounded-full border border-blue-200">
+                {tag.key_name}:{tag.value}
+              </span>
+            ))}
+            {bundle.tags.length > 3 && (
+              <span className="px-1.5 py-0 text-[10px] text-gray-400">+{bundle.tags.length - 3}</span>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <span className="text-xs text-gray-400">

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { deletePrompt, deleteBundle, fetchBundle, type Prompt } from "../../hooks/useApi";
+import { deletePrompt, deleteBundle, fetchBundle, type Prompt, type TagSuggestion } from "../../hooks/useApi";
 import { useGeneratorContext } from "../../contexts/GeneratorContext";
 import { PromptList } from "./PromptList";
 import { BundleList } from "./BundleList";
@@ -7,6 +7,7 @@ import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { PromptEditDialog } from "./PromptEditDialog";
 import { BundleEditDialog } from "./BundleEditDialog";
 import { ViewModeToolbar } from "./ViewModeToolbar";
+import { TagFilter } from "./TagFilter";
 import type { ViewMode, ImageSize } from "./types";
 
 type Segment = "prompts" | "bundles";
@@ -39,6 +40,7 @@ export function PromptManager({ onNavigateToGenerator }: PromptManagerProps) {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [openBundleTarget, setOpenBundleTarget] = useState<OpenBundleTarget | null>(null);
+  const [selectedTags, setSelectedTags] = useState<TagSuggestion[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const { appendPromptToSets, replaceSetsFromBundle } = useGeneratorContext();
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
@@ -116,6 +118,7 @@ export function PromptManager({ onNavigateToGenerator }: PromptManagerProps) {
     setSegment(seg);
     setQuery("");
     setDebouncedQuery("");
+    setSelectedTags([]);
     if (debounceRef.current) clearTimeout(debounceRef.current);
   };
 
@@ -169,9 +172,20 @@ export function PromptManager({ onNavigateToGenerator }: PromptManagerProps) {
         />
       </div>
 
+      <div className="mb-4">
+        <TagFilter
+          type={segment}
+          query={debouncedQuery}
+          refreshKey={refreshKey}
+          selectedTags={selectedTags}
+          onChange={setSelectedTags}
+        />
+      </div>
+
       {segment === "prompts" ? (
         <PromptList
           query={debouncedQuery}
+          tagValueIds={selectedTags.map((t) => t.value_id)}
           refreshKey={refreshKey}
           viewMode={viewMode}
           imageSize={imageSize}
@@ -182,6 +196,7 @@ export function PromptManager({ onNavigateToGenerator }: PromptManagerProps) {
       ) : (
         <BundleList
           query={debouncedQuery}
+          tagValueIds={selectedTags.map((t) => t.value_id)}
           refreshKey={refreshKey}
           viewMode={viewMode}
           imageSize={imageSize}
