@@ -303,6 +303,83 @@ describe("Bundles API", () => {
     });
   });
 
+  describe("タグ付与 (bundles)", () => {
+    let keyId: number;
+
+    beforeEach(async () => {
+      const keyRes = await request(app)
+        .post("/api/tags/keys")
+        .send({ name: "style" });
+      keyId = keyRes.body.id;
+    });
+
+    it("POST時にタグ付きで保存できる", async () => {
+      const tags = [{ key_id: keyId, value: "anime" }];
+      const res = await request(app)
+        .post("/api/bundles")
+        .field("title", "タグ付き")
+        .field("description", "説明")
+        .field("tags", JSON.stringify(tags));
+
+      expect(res.status).toBe(201);
+      expect(res.body.tags).toHaveLength(1);
+      expect(res.body.tags[0].key_name).toBe("style");
+      expect(res.body.tags[0].value).toBe("anime");
+    });
+
+    it("PUT時にタグを更新できる", async () => {
+      const created = await request(app)
+        .post("/api/bundles")
+        .field("title", "テスト")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "anime" }]));
+
+      const res = await request(app)
+        .put(`/api/bundles/${created.body.id}`)
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "realistic" }]));
+
+      expect(res.status).toBe(200);
+      expect(res.body.tags).toHaveLength(1);
+      expect(res.body.tags[0].value).toBe("realistic");
+    });
+
+    it("一覧取得時にタグが含まれる", async () => {
+      await request(app)
+        .post("/api/bundles")
+        .field("title", "タグ付き")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "anime" }]));
+
+      const res = await request(app).get("/api/bundles");
+      expect(res.body.data[0].tags).toHaveLength(1);
+    });
+
+    it("個別取得時にタグが含まれる", async () => {
+      const created = await request(app)
+        .post("/api/bundles")
+        .field("title", "タグ付き")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "anime" }]));
+
+      const res = await request(app).get(`/api/bundles/${created.body.id}`);
+      expect(res.body.tags).toHaveLength(1);
+    });
+
+    it("タグなし送信時は既存タグを維持（tags未指定）", async () => {
+      const created = await request(app)
+        .post("/api/bundles")
+        .field("title", "テスト")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "anime" }]));
+
+      const res = await request(app)
+        .put(`/api/bundles/${created.body.id}`)
+        .field("title", "更新タイトル");
+
+      expect(res.body.tags).toHaveLength(1);
+    });
+  });
+
   describe("DELETE /api/bundles/:id", () => {
     it("バンドルを削除できる", async () => {
       const created = await request(app)
