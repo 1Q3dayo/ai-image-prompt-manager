@@ -90,6 +90,34 @@ describe("スキーマ作成", () => {
     expect(result?.name).toBe("bundles_fts");
   });
 
+  it("tag_keysテーブルが存在する", () => {
+    const result = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='tag_keys'"
+    ).get() as Record<string, string> | undefined;
+    expect(result?.name).toBe("tag_keys");
+  });
+
+  it("tag_valuesテーブルが存在する", () => {
+    const result = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='tag_values'"
+    ).get() as Record<string, string> | undefined;
+    expect(result?.name).toBe("tag_values");
+  });
+
+  it("prompt_tagsテーブルが存在する", () => {
+    const result = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='prompt_tags'"
+    ).get() as Record<string, string> | undefined;
+    expect(result?.name).toBe("prompt_tags");
+  });
+
+  it("bundle_tagsテーブルが存在する", () => {
+    const result = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='bundle_tags'"
+    ).get() as Record<string, string> | undefined;
+    expect(result?.name).toBe("bundle_tags");
+  });
+
   it("二重実行してもエラーにならない（冪等性）", () => {
     expect(() => initializeSchema(db)).not.toThrow();
   });
@@ -261,6 +289,68 @@ describe("CASCADE削除", () => {
     const after = db.prepare("SELECT COUNT(*) as count FROM bundle_items").get() as Record<string, number>;
     expect(after.count).toBe(0);
   });
+
+  it("tag_key削除時にtag_valuesも削除される", () => {
+    db.exec("INSERT INTO tag_keys (name) VALUES ('character')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'girl')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'boy')");
+
+    const before = db.prepare("SELECT COUNT(*) as count FROM tag_values").get() as Record<string, number>;
+    expect(before.count).toBe(2);
+
+    db.exec("DELETE FROM tag_keys WHERE id = 1");
+
+    const after = db.prepare("SELECT COUNT(*) as count FROM tag_values").get() as Record<string, number>;
+    expect(after.count).toBe(0);
+  });
+
+  it("tag_key削除時にprompt_tagsも削除される", () => {
+    db.exec("INSERT INTO prompts (title, prompt, has_break, description) VALUES ('t', 'p', 0, 'd')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'anime')");
+    db.exec("INSERT INTO prompt_tags (prompt_id, tag_value_id) VALUES (1, 1)");
+
+    db.exec("DELETE FROM tag_keys WHERE id = 1");
+
+    const after = db.prepare("SELECT COUNT(*) as count FROM prompt_tags").get() as Record<string, number>;
+    expect(after.count).toBe(0);
+  });
+
+  it("tag_key削除時にbundle_tagsも削除される", () => {
+    db.exec("INSERT INTO bundles (title, description) VALUES ('t', 'd')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'anime')");
+    db.exec("INSERT INTO bundle_tags (bundle_id, tag_value_id) VALUES (1, 1)");
+
+    db.exec("DELETE FROM tag_keys WHERE id = 1");
+
+    const after = db.prepare("SELECT COUNT(*) as count FROM bundle_tags").get() as Record<string, number>;
+    expect(after.count).toBe(0);
+  });
+
+  it("prompt削除時にprompt_tagsも削除される", () => {
+    db.exec("INSERT INTO prompts (title, prompt, has_break, description) VALUES ('t', 'p', 0, 'd')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'anime')");
+    db.exec("INSERT INTO prompt_tags (prompt_id, tag_value_id) VALUES (1, 1)");
+
+    db.exec("DELETE FROM prompts WHERE id = 1");
+
+    const after = db.prepare("SELECT COUNT(*) as count FROM prompt_tags").get() as Record<string, number>;
+    expect(after.count).toBe(0);
+  });
+
+  it("bundle削除時にbundle_tagsも削除される", () => {
+    db.exec("INSERT INTO bundles (title, description) VALUES ('t', 'd')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'anime')");
+    db.exec("INSERT INTO bundle_tags (bundle_id, tag_value_id) VALUES (1, 1)");
+
+    db.exec("DELETE FROM bundles WHERE id = 1");
+
+    const after = db.prepare("SELECT COUNT(*) as count FROM bundle_tags").get() as Record<string, number>;
+    expect(after.count).toBe(0);
+  });
 });
 
 describe("UNIQUE制約", () => {
@@ -317,6 +407,50 @@ describe("UNIQUE制約", () => {
         INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
         VALUES (999, 0, 'item', 'prompt', 0)
       `);
+    }).toThrow();
+  });
+
+  it("tag_keysのname重複は拒否される", () => {
+    db.exec("INSERT INTO tag_keys (name) VALUES ('character')");
+    expect(() => {
+      db.exec("INSERT INTO tag_keys (name) VALUES ('character')");
+    }).toThrow();
+  });
+
+  it("同一tag_key_idで同じvalueの重複は拒否される", () => {
+    db.exec("INSERT INTO tag_keys (name) VALUES ('character')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'girl')");
+    expect(() => {
+      db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'girl')");
+    }).toThrow();
+  });
+
+  it("異なるtag_key_idでは同じvalueを使える", () => {
+    db.exec("INSERT INTO tag_keys (name) VALUES ('character')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    expect(() => {
+      db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'same')");
+      db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (2, 'same')");
+    }).not.toThrow();
+  });
+
+  it("同一prompt_idとtag_value_idの重複は拒否される", () => {
+    db.exec("INSERT INTO prompts (title, prompt, has_break, description) VALUES ('t', 'p', 0, 'd')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'anime')");
+    db.exec("INSERT INTO prompt_tags (prompt_id, tag_value_id) VALUES (1, 1)");
+    expect(() => {
+      db.exec("INSERT INTO prompt_tags (prompt_id, tag_value_id) VALUES (1, 1)");
+    }).toThrow();
+  });
+
+  it("同一bundle_idとtag_value_idの重複は拒否される", () => {
+    db.exec("INSERT INTO bundles (title, description) VALUES ('t', 'd')");
+    db.exec("INSERT INTO tag_keys (name) VALUES ('style')");
+    db.exec("INSERT INTO tag_values (tag_key_id, value) VALUES (1, 'anime')");
+    db.exec("INSERT INTO bundle_tags (bundle_id, tag_value_id) VALUES (1, 1)");
+    expect(() => {
+      db.exec("INSERT INTO bundle_tags (bundle_id, tag_value_id) VALUES (1, 1)");
     }).toThrow();
   });
 });

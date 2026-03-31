@@ -109,6 +109,55 @@ export function createAdminRouter(
       .prepare("SELECT * FROM bundles ORDER BY id")
       .all() as Array<Record<string, unknown>>;
 
+    const tagKeys = db
+      .prepare("SELECT * FROM tag_keys ORDER BY sort_order ASC, id ASC")
+      .all() as Array<{ id: number; name: string; sort_order: number }>;
+    const tagValues = db
+      .prepare("SELECT * FROM tag_values ORDER BY value ASC")
+      .all() as Array<{ id: number; tag_key_id: number; value: string }>;
+    const promptTagRows = db
+      .prepare(
+        `SELECT pt.prompt_id, tk.name as key, tv.value
+         FROM prompt_tags pt
+         JOIN tag_values tv ON pt.tag_value_id = tv.id
+         JOIN tag_keys tk ON tv.tag_key_id = tk.id`,
+      )
+      .all() as Array<{ prompt_id: number; key: string; value: string }>;
+    const bundleTagRows = db
+      .prepare(
+        `SELECT bt.bundle_id, tk.name as key, tv.value
+         FROM bundle_tags bt
+         JOIN tag_values tv ON bt.tag_value_id = tv.id
+         JOIN tag_keys tk ON tv.tag_key_id = tk.id`,
+      )
+      .all() as Array<{ bundle_id: number; key: string; value: string }>;
+
+    const promptTagMap = new Map<number, Array<{ key: string; value: string }>>();
+    for (const t of promptTagRows) {
+      const arr = promptTagMap.get(t.prompt_id) ?? [];
+      arr.push({ key: t.key, value: t.value });
+      promptTagMap.set(t.prompt_id, arr);
+    }
+    const bundleTagMap = new Map<number, Array<{ key: string; value: string }>>();
+    for (const t of bundleTagRows) {
+      const arr = bundleTagMap.get(t.bundle_id) ?? [];
+      arr.push({ key: t.key, value: t.value });
+      bundleTagMap.set(t.bundle_id, arr);
+    }
+
+    const valuesByKeyId = new Map<number, string[]>();
+    for (const v of tagValues) {
+      const arr = valuesByKeyId.get(v.tag_key_id) ?? [];
+      arr.push(v.value);
+      valuesByKeyId.set(v.tag_key_id, arr);
+    }
+
+    const exportTagKeys = tagKeys.map((k) => ({
+      name: k.name,
+      sort_order: k.sort_order,
+      values: valuesByKeyId.get(k.id) ?? [],
+    }));
+
     const exportPrompts = prompts.map((p) => {
       const item: Record<string, unknown> = {
         title: p.title,
@@ -118,6 +167,7 @@ export function createAdminRouter(
         image_path: p.image_path,
         created_at: p.created_at,
         updated_at: p.updated_at,
+        tags: promptTagMap.get(p.id as number) ?? [],
       };
       if (includeImages && p.image_path) {
         const imgPath = path.join(imagesDir, p.image_path as string);
@@ -143,6 +193,7 @@ export function createAdminRouter(
         created_at: b.created_at,
         updated_at: b.updated_at,
         items,
+        tags: bundleTagMap.get(b.id as number) ?? [],
       };
       if (includeImages && b.image_path) {
         const imgPath = path.join(imagesDir, b.image_path as string);
@@ -157,8 +208,9 @@ export function createAdminRouter(
 
     const now = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const payload = {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
+      tag_keys: exportTagKeys,
       prompts: exportPrompts,
       bundles: exportBundles,
     };
@@ -209,6 +261,7 @@ export function createAdminRouter(
       version?: number;
       prompts?: Array<Record<string, unknown>>;
       bundles?: Array<Record<string, unknown>>;
+      tag_keys?: Array<{ name: string; sort_order: number; values: string[] }>;
     };
     try {
       payload = JSON.parse(req.file.buffer.toString("utf-8"));
@@ -231,14 +284,43 @@ export function createAdminRouter(
     db.exec("BEGIN TRANSACTION");
     try {
       if (mode === "replace") {
+        db.exec("DELETE FROM prompt_tags");
+        db.exec("DELETE FROM bundle_tags");
+        db.exec("DELETE FROM tag_values");
+        db.exec("DELETE FROM tag_keys");
         db.exec("DELETE FROM bundle_items");
         db.exec("DELETE FROM bundles");
         db.exec("DELETE FROM prompts");
       }
 
+      // タグキー/値のインポート（version 2以降）
+      const tagKeyNameToId = new Map<string, number>();
+      if (payload.version! >= 2 && Array.isArray(payload.tag_keys)) {
+        for (const tk of payload.tag_keys) {
+          db.prepare(
+            "INSERT OR IGNORE INTO tag_keys (name, sort_order) VALUES (?, ?)",
+          ).run(tk.name, tk.sort_order);
+          const row = db
+            .prepare("SELECT id FROM tag_keys WHERE name = ?")
+            .get(tk.name) as { id: number };
+          tagKeyNameToId.set(tk.name, row.id);
+
+          if (Array.isArray(tk.values)) {
+            for (const v of tk.values) {
+              db.prepare(
+                "INSERT OR IGNORE INTO tag_values (tag_key_id, value) VALUES (?, ?)",
+              ).run(row.id, v);
+            }
+          }
+        }
+      }
+
       const insertPrompt = db.prepare(
         `INSERT INTO prompts (title, prompt, has_break, description, image_path, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      );
+      const insertPromptTag = db.prepare(
+        "INSERT OR IGNORE INTO prompt_tags (prompt_id, tag_value_id) VALUES (?, ?)",
       );
 
       for (const p of payload.prompts!) {
@@ -251,7 +333,7 @@ export function createAdminRouter(
           }
         }
 
-        insertPrompt.run(
+        const result = insertPrompt.run(
           p.title as string,
           p.prompt as string,
           (p.has_break as number) ?? 0,
@@ -260,6 +342,23 @@ export function createAdminRouter(
           (p.created_at as string) ?? new Date().toISOString(),
           (p.updated_at as string) ?? new Date().toISOString(),
         );
+        const promptId = Number(result.lastInsertRowid);
+
+        if (payload.version! >= 2 && Array.isArray(p.tags)) {
+          const tags = (p.tags as Array<{ key: string; value: string }>).slice(0, 10);
+          for (const tag of tags) {
+            const keyId = tagKeyNameToId.get(tag.key);
+            if (!keyId) continue;
+            db.prepare(
+              "INSERT OR IGNORE INTO tag_values (tag_key_id, value) VALUES (?, ?)",
+            ).run(keyId, tag.value);
+            const tv = db
+              .prepare("SELECT id FROM tag_values WHERE tag_key_id = ? AND value = ?")
+              .get(keyId, tag.value) as { id: number };
+            insertPromptTag.run(promptId, tv.id);
+          }
+        }
+
         importedPrompts++;
       }
 
@@ -270,6 +369,9 @@ export function createAdminRouter(
       const insertItem = db.prepare(
         `INSERT INTO bundle_items (bundle_id, sort_order, title, prompt, has_break)
          VALUES (?, ?, ?, ?, ?)`,
+      );
+      const insertBundleTag = db.prepare(
+        "INSERT OR IGNORE INTO bundle_tags (bundle_id, tag_value_id) VALUES (?, ?)",
       );
 
       for (const b of payload.bundles!) {
@@ -301,6 +403,21 @@ export function createAdminRouter(
               item.prompt as string,
               (item.has_break as number) ?? 0,
             );
+          }
+        }
+
+        if (payload.version! >= 2 && Array.isArray(b.tags)) {
+          const tags = (b.tags as Array<{ key: string; value: string }>).slice(0, 10);
+          for (const tag of tags) {
+            const keyId = tagKeyNameToId.get(tag.key);
+            if (!keyId) continue;
+            db.prepare(
+              "INSERT OR IGNORE INTO tag_values (tag_key_id, value) VALUES (?, ?)",
+            ).run(keyId, tag.value);
+            const tv = db
+              .prepare("SELECT id FROM tag_values WHERE tag_key_id = ? AND value = ?")
+              .get(keyId, tag.value) as { id: number };
+            insertBundleTag.run(bundleId, tv.id);
           }
         }
 

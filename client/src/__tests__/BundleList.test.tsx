@@ -59,7 +59,7 @@ describe("BundleList", () => {
     render(<BundleList {...defaultProps} />);
 
     await waitFor(() => {
-      expect(mockFetchBundles).toHaveBeenCalledWith("", 20, 0);
+      expect(mockFetchBundles).toHaveBeenCalledWith("", 20, 0, []);
     });
   });
 
@@ -67,7 +67,7 @@ describe("BundleList", () => {
     render(<BundleList {...defaultProps} query="風景" />);
 
     await waitFor(() => {
-      expect(mockFetchBundles).toHaveBeenCalledWith("風景", 20, 0);
+      expect(mockFetchBundles).toHaveBeenCalledWith("風景", 20, 0, []);
     });
   });
 
@@ -173,6 +173,6 @@ describe("BundleList", () => {
     mockFetchBundles.mockClear();
     await user.click(screen.getByTestId("pagination-next"));
 
-    expect(mockFetchBundles).toHaveBeenCalledWith("", 20, 20);
+    expect(mockFetchBundles).toHaveBeenCalledWith("", 20, 20, []);
   });
 });

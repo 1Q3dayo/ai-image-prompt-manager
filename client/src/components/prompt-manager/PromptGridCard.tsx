@@ -31,6 +31,18 @@ export function PromptGridCard({ prompt, onOpen, onEdit, onDelete }: PromptGridC
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-2">
           <p className="text-white text-sm font-medium truncate">{prompt.title}</p>
+          {prompt.tags && prompt.tags.length > 0 && (
+            <div className="flex gap-1 mt-0.5">
+              {prompt.tags.slice(0, 2).map((tag) => (
+                <span key={`${tag.key_id}-${tag.value_id}`} className="px-1 text-[10px] bg-white/20 text-white rounded">
+                  {tag.key_name}:{tag.value}
+                </span>
+              ))}
+              {prompt.tags.length > 2 && (
+                <span className="text-[10px] text-white/60">+{prompt.tags.length - 2}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center justify-between px-2 py-1.5 bg-white">

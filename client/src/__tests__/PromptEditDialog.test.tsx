@@ -12,6 +12,8 @@ vi.mock("../hooks/useApi", () => ({
   updatePrompt: (...args: unknown[]) => mockUpdatePrompt(...args),
   savePrompt: (...args: unknown[]) => mockSavePrompt(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 const samplePrompt = {
@@ -151,6 +153,7 @@ describe("PromptEditDialog", () => {
       prompt: "test prompt text",
       has_break: false,
       description: "テスト説明",
+      tags: [],
     });
   });
 
@@ -192,6 +195,7 @@ describe("PromptEditDialog", () => {
       prompt: "test prompt text",
       has_break: false,
       description: "テスト説明",
+      tags: [],
       copy_image_from: "test.jpg",
     });
     expect(mockUpdatePrompt).not.toHaveBeenCalled();

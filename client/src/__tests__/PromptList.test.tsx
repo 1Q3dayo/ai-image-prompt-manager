@@ -61,7 +61,7 @@ describe("PromptList", () => {
     render(<PromptList {...defaultProps} />);
 
     await waitFor(() => {
-      expect(mockFetchPrompts).toHaveBeenCalledWith("", 20, 0);
+      expect(mockFetchPrompts).toHaveBeenCalledWith("", 20, 0, []);
     });
   });
 
@@ -69,7 +69,7 @@ describe("PromptList", () => {
     render(<PromptList {...defaultProps} query="風景" />);
 
     await waitFor(() => {
-      expect(mockFetchPrompts).toHaveBeenCalledWith("風景", 20, 0);
+      expect(mockFetchPrompts).toHaveBeenCalledWith("風景", 20, 0, []);
     });
   });
 
@@ -166,6 +166,6 @@ describe("PromptList", () => {
     mockFetchPrompts.mockClear();
     await user.click(screen.getByTestId("pagination-next"));
 
-    expect(mockFetchPrompts).toHaveBeenCalledWith("", 20, 20);
+    expect(mockFetchPrompts).toHaveBeenCalledWith("", 20, 20, []);
   });
 });

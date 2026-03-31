@@ -7,6 +7,8 @@ vi.mock("../hooks/useApi", () => ({
   savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
   updatePrompt: vi.fn().mockResolvedValue({ id: 1 }),
   fetchPrompt: vi.fn().mockResolvedValue({ id: 1, description: "既存の説明" }),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 describe("SaveDialog", () => {
@@ -58,7 +60,7 @@ describe("SaveDialog", () => {
       prompt: "test prompt",
       has_break: false,
       description: "テスト説明",
-      image: undefined,
+      tags: [],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();
   });

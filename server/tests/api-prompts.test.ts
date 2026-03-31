@@ -221,6 +221,101 @@ describe("Prompts API", () => {
     });
   });
 
+  describe("タグ付与 (prompts)", () => {
+    let keyId: number;
+
+    beforeEach(async () => {
+      const keyRes = await request(app)
+        .post("/api/tags/keys")
+        .send({ name: "character" });
+      keyId = keyRes.body.id;
+    });
+
+    it("POST時にタグ付きで保存できる", async () => {
+      const tags = [{ key_id: keyId, value: "girl" }];
+      const res = await request(app)
+        .post("/api/prompts")
+        .field("title", "タグ付き")
+        .field("prompt", "tagged")
+        .field("description", "説明")
+        .field("tags", JSON.stringify(tags));
+
+      expect(res.status).toBe(201);
+      expect(res.body.tags).toHaveLength(1);
+      expect(res.body.tags[0].key_name).toBe("character");
+      expect(res.body.tags[0].value).toBe("girl");
+    });
+
+    it("PUT時にタグを更新できる", async () => {
+      const created = await request(app)
+        .post("/api/prompts")
+        .field("title", "テスト")
+        .field("prompt", "test")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "girl" }]));
+
+      const res = await request(app)
+        .put(`/api/prompts/${created.body.id}`)
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "boy" }]));
+
+      expect(res.status).toBe(200);
+      expect(res.body.tags).toHaveLength(1);
+      expect(res.body.tags[0].value).toBe("boy");
+    });
+
+    it("一覧取得時にタグが含まれる", async () => {
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "タグ付き")
+        .field("prompt", "tagged")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "girl" }]));
+
+      const res = await request(app).get("/api/prompts");
+      expect(res.body.data[0].tags).toHaveLength(1);
+      expect(res.body.data[0].tags[0].key_name).toBe("character");
+    });
+
+    it("個別取得時にタグが含まれる", async () => {
+      const created = await request(app)
+        .post("/api/prompts")
+        .field("title", "タグ付き")
+        .field("prompt", "tagged")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "girl" }]));
+
+      const res = await request(app).get(`/api/prompts/${created.body.id}`);
+      expect(res.body.tags).toHaveLength(1);
+    });
+
+    it("11個以上のタグで400を返す", async () => {
+      const tags = Array.from({ length: 11 }, (_, i) => ({
+        key_id: keyId,
+        value: `val${i}`,
+      }));
+      const res = await request(app)
+        .post("/api/prompts")
+        .field("title", "多すぎ")
+        .field("prompt", "too many")
+        .field("description", "説明")
+        .field("tags", JSON.stringify(tags));
+
+      expect(res.status).toBe(400);
+    });
+
+    it("存在しない値は自動作成される", async () => {
+      const res = await request(app)
+        .post("/api/prompts")
+        .field("title", "新規値")
+        .field("prompt", "new value")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "new_character" }]));
+
+      expect(res.status).toBe(201);
+      expect(res.body.tags[0].value).toBe("new_character");
+    });
+  });
+
   describe("DELETE /api/prompts/:id", () => {
     it("プロンプトを削除できる", async () => {
       const created = await request(app)

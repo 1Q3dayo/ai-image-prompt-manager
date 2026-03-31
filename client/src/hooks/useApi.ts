@@ -1,5 +1,28 @@
 const BASE_URL = "/api";
 
+export interface TagKey {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+export interface TagValue {
+  id: number;
+  tag_key_id: number;
+  value: string;
+}
+
+export interface TagKeyWithValues extends TagKey {
+  values: TagValue[];
+}
+
+export interface Tag {
+  key_id: number;
+  key_name: string;
+  value_id: number;
+  value: string;
+}
+
 export interface Prompt {
   id: number;
   title: string;
@@ -9,6 +32,7 @@ export interface Prompt {
   image_path: string | null;
   created_at: string;
   updated_at: string;
+  tags?: Tag[];
 }
 
 export interface PaginatedResponse<T> {
@@ -20,11 +44,15 @@ export async function fetchPrompts(
   q = "",
   limit = 50,
   offset = 0,
+  tagValueIds: number[] = [],
 ): Promise<PaginatedResponse<Prompt>> {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
+  for (const id of tagValueIds) {
+    params.append("tag_value_ids", String(id));
+  }
   const res = await fetch(`${BASE_URL}/prompts?${params}`);
   if (!res.ok) throw new Error("プロンプト一覧の取得に失敗しました");
   return res.json();
@@ -43,6 +71,7 @@ export async function savePrompt(data: {
   description: string;
   image?: File;
   copy_image_from?: string;
+  tags?: Array<{ key_id: number; value: string }>;
 }): Promise<Prompt> {
   const form = new FormData();
   form.append("title", data.title);
@@ -51,6 +80,7 @@ export async function savePrompt(data: {
   form.append("description", data.description);
   if (data.image) form.append("image", data.image);
   else if (data.copy_image_from) form.append("copy_image_from", data.copy_image_from);
+  if (data.tags) form.append("tags", JSON.stringify(data.tags));
   const res = await fetch(`${BASE_URL}/prompts`, {
     method: "POST",
     body: form,
@@ -81,6 +111,7 @@ export interface BundleSummary {
   item_count: number;
   created_at: string;
   updated_at: string;
+  tags?: Tag[];
 }
 
 export interface Bundle extends BundleSummary {
@@ -91,11 +122,15 @@ export async function fetchBundles(
   q = "",
   limit = 50,
   offset = 0,
+  tagValueIds: number[] = [],
 ): Promise<PaginatedResponse<BundleSummary>> {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
+  for (const id of tagValueIds) {
+    params.append("tag_value_ids", String(id));
+  }
   const res = await fetch(`${BASE_URL}/bundles?${params}`);
   if (!res.ok) throw new Error("バンドル一覧の取得に失敗しました");
   return res.json();
@@ -113,6 +148,7 @@ export async function saveBundle(data: {
   items: Array<{ title: string; prompt: string; has_break: boolean }>;
   image?: File;
   copy_image_from?: string;
+  tags?: Array<{ key_id: number; value: string }>;
 }): Promise<Bundle> {
   const form = new FormData();
   form.append("title", data.title);
@@ -120,6 +156,7 @@ export async function saveBundle(data: {
   form.append("items", JSON.stringify(data.items));
   if (data.image) form.append("image", data.image);
   else if (data.copy_image_from) form.append("copy_image_from", data.copy_image_from);
+  if (data.tags) form.append("tags", JSON.stringify(data.tags));
   const res = await fetch(`${BASE_URL}/bundles`, {
     method: "POST",
     body: form,
@@ -136,6 +173,7 @@ export async function updatePrompt(
     has_break?: boolean;
     description?: string;
     image?: File;
+    tags?: Array<{ key_id: number; value: string }>;
   },
 ): Promise<Prompt> {
   const form = new FormData();
@@ -146,6 +184,7 @@ export async function updatePrompt(
   if (data.description !== undefined)
     form.append("description", data.description);
   if (data.image) form.append("image", data.image);
+  if (data.tags !== undefined) form.append("tags", JSON.stringify(data.tags));
   const res = await fetch(`${BASE_URL}/prompts/${id}`, {
     method: "PUT",
     body: form,
@@ -161,6 +200,7 @@ export async function updateBundle(
     description?: string;
     items?: Array<{ title: string; prompt: string; has_break: boolean }>;
     image?: File;
+    tags?: Array<{ key_id: number; value: string }>;
   },
 ): Promise<Bundle> {
   const form = new FormData();
@@ -169,6 +209,7 @@ export async function updateBundle(
     form.append("description", data.description);
   if (data.items !== undefined) form.append("items", JSON.stringify(data.items));
   if (data.image) form.append("image", data.image);
+  if (data.tags !== undefined) form.append("tags", JSON.stringify(data.tags));
   const res = await fetch(`${BASE_URL}/bundles/${id}`, {
     method: "PUT",
     body: form,
@@ -245,6 +286,110 @@ export async function importJson(
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? "JSONインポートに失敗しました");
   }
+  return res.json();
+}
+
+// Tags API
+
+export async function fetchTagKeys(
+  includeValues = false,
+): Promise<TagKey[] | TagKeyWithValues[]> {
+  const params = includeValues ? "?includeValues=true" : "";
+  const res = await fetch(`${BASE_URL}/tags/keys${params}`);
+  if (!res.ok) throw new Error("タグキー一覧の取得に失敗しました");
+  return res.json();
+}
+
+export async function createTagKey(name: string): Promise<TagKey> {
+  const res = await fetch(`${BASE_URL}/tags/keys`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("タグキーの作成に失敗しました");
+  return res.json();
+}
+
+export async function updateTagKey(
+  id: number,
+  data: { name?: string; sort_order?: number },
+): Promise<TagKey> {
+  const res = await fetch(`${BASE_URL}/tags/keys/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("タグキーの更新に失敗しました");
+  return res.json();
+}
+
+export async function deleteTagKey(id: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/tags/keys/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("タグキーの削除に失敗しました");
+}
+
+export async function fetchTagValues(
+  keyId: number,
+  q = "",
+): Promise<TagValue[]> {
+  const params = q ? `?q=${encodeURIComponent(q)}` : "";
+  const res = await fetch(`${BASE_URL}/tags/keys/${keyId}/values${params}`);
+  if (!res.ok) throw new Error("タグ値一覧の取得に失敗しました");
+  return res.json();
+}
+
+export async function createTagValue(
+  keyId: number,
+  value: string,
+): Promise<TagValue> {
+  const res = await fetch(`${BASE_URL}/tags/keys/${keyId}/values`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) throw new Error("タグ値の作成に失敗しました");
+  return res.json();
+}
+
+export async function updateTagValue(
+  id: number,
+  value: string,
+): Promise<TagValue> {
+  const res = await fetch(`${BASE_URL}/tags/values/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) throw new Error("タグ値の更新に失敗しました");
+  return res.json();
+}
+
+export async function deleteTagValue(id: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/tags/values/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("タグ値の削除に失敗しました");
+}
+
+export interface TagSuggestion extends Tag {
+  count: number;
+}
+
+export async function fetchTagSuggestions(
+  type: "prompts" | "bundles",
+  selectedValueIds: number[] = [],
+  query = "",
+): Promise<TagSuggestion[]> {
+  const params = new URLSearchParams();
+  params.set("type", type);
+  if (selectedValueIds.length > 0) {
+    params.set("selected", selectedValueIds.join(","));
+  }
+  if (query) params.set("q", query);
+  const res = await fetch(`${BASE_URL}/tags/suggestions?${params}`);
+  if (!res.ok) throw new Error("タグ候補の取得に失敗しました");
   return res.json();
 }
 

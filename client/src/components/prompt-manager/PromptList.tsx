@@ -15,6 +15,7 @@ const PAGE_SIZE = 20;
 
 interface PromptListProps {
   query: string;
+  tagValueIds?: number[];
   refreshKey?: number;
   viewMode?: ViewMode;
   imageSize?: ImageSize;
@@ -23,7 +24,7 @@ interface PromptListProps {
   onDelete: (id: number, title: string) => void;
 }
 
-export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "sm", onOpen, onEdit, onDelete }: PromptListProps) {
+export function PromptList({ query, tagValueIds = [], refreshKey, viewMode = "list", imageSize = "sm", onOpen, onEdit, onDelete }: PromptListProps) {
   const [results, setResults] = useState<Prompt[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -31,12 +32,12 @@ export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "
   const [error, setError] = useState("");
   const generationRef = useRef(0);
 
-  const load = useCallback(async (q: string, off: number) => {
+  const load = useCallback(async (q: string, off: number, tvIds: number[]) => {
     const gen = ++generationRef.current;
     setLoading(true);
     setError("");
     try {
-      const res = await fetchPrompts(q, PAGE_SIZE, off);
+      const res = await fetchPrompts(q, PAGE_SIZE, off, tvIds);
       if (gen === generationRef.current) {
         setResults(res.data);
         setTotal(res.total);
@@ -56,12 +57,13 @@ export function PromptList({ query, refreshKey, viewMode = "list", imageSize = "
 
   useEffect(() => {
     setOffset(0);
-    load(query, 0);
-  }, [query, refreshKey, load]);
+    load(query, 0, tagValueIds);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, tagValueIds.join(","), refreshKey, load]);
 
   const handlePageChange = (newOffset: number) => {
     setOffset(newOffset);
-    load(query, newOffset);
+    load(query, newOffset, tagValueIds);
   };
 
   return (

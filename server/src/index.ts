@@ -8,6 +8,7 @@ import { initializeSchema } from "./db/schema.js";
 import { createPromptsRouter } from "./routes/prompts.js";
 import { createBundlesRouter } from "./routes/bundles.js";
 import { createAdminRouter } from "./routes/admin.js";
+import { createTagsRouter } from "./routes/tags.js";
 import type { DatabaseSync } from "node:sqlite";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +47,7 @@ export function createApp(db?: DatabaseSync, dataDirOverride?: string) {
   app.use("/api/prompts", createPromptsRouter(getDb));
   app.use("/api/bundles", createBundlesRouter(getDb));
   app.use("/api/admin", createAdminRouter(getDb, setDb, dataDir));
+  app.use("/api/tags", createTagsRouter(getDb));
 
   return app;
 }

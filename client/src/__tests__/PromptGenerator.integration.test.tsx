@@ -17,6 +17,8 @@ vi.mock("../hooks/useApi", () => ({
   fetchBundles: (...args: unknown[]) => mockFetchBundles(...args),
   fetchBundle: (...args: unknown[]) => mockFetchBundle(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 describe("PromptGenerator 統合テスト", () => {

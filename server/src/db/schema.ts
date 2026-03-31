@@ -52,6 +52,52 @@ export function initializeSchema(db: DatabaseSync): void {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tag_keys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tag_values (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tag_key_id INTEGER NOT NULL,
+      value TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (tag_key_id) REFERENCES tag_keys(id) ON DELETE CASCADE,
+      UNIQUE(tag_key_id, value)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_tags (
+      prompt_id INTEGER NOT NULL,
+      tag_value_id INTEGER NOT NULL,
+      PRIMARY KEY (prompt_id, tag_value_id),
+      FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_value_id) REFERENCES tag_values(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bundle_tags (
+      bundle_id INTEGER NOT NULL,
+      tag_value_id INTEGER NOT NULL,
+      PRIMARY KEY (bundle_id, tag_value_id),
+      FOREIGN KEY (bundle_id) REFERENCES bundles(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_value_id) REFERENCES tag_values(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec("CREATE INDEX IF NOT EXISTS idx_tag_values_key_id ON tag_values(tag_key_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_prompt_tags_prompt_id ON prompt_tags(prompt_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_prompt_tags_value_id ON prompt_tags(tag_value_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_bundle_tags_bundle_id ON bundle_tags(bundle_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_bundle_tags_value_id ON bundle_tags(tag_value_id)");
+
   initializeTriggers(db);
   rebuildFtsIndex(db);
 }

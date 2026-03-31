@@ -11,6 +11,8 @@ vi.mock("../hooks/useApi", () => ({
   saveBundle: (...args: unknown[]) => mockSaveBundle(...args),
   updateBundle: (...args: unknown[]) => mockUpdateBundle(...args),
   fetchBundle: (...args: unknown[]) => mockFetchBundle(...args),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 describe("BundleSaveDialog", () => {
@@ -85,7 +87,7 @@ describe("BundleSaveDialog", () => {
         { title: "背景", prompt: "landscape", has_break: false },
         { title: "人物", prompt: "portrait", has_break: true },
       ],
-      image: undefined,
+      tags: [],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
