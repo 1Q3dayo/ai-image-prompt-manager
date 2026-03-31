@@ -378,6 +378,133 @@ describe("Tags API", () => {
     });
   });
 
+  describe("GET /api/tags/suggestions", () => {
+    let keyId1: number;
+    let keyId2: number;
+
+    beforeEach(async () => {
+      const k1 = await request(app).post("/api/tags/keys").send({ name: "character" });
+      const k2 = await request(app).post("/api/tags/keys").send({ name: "style" });
+      keyId1 = k1.body.id;
+      keyId2 = k2.body.id;
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "p1")
+        .field("prompt", "prompt1")
+        .field("description", "d1")
+        .field("tags", JSON.stringify([{ key_id: keyId1, value: "girl" }, { key_id: keyId2, value: "anime" }]));
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "p2")
+        .field("prompt", "prompt2")
+        .field("description", "d2")
+        .field("tags", JSON.stringify([{ key_id: keyId1, value: "girl" }, { key_id: keyId2, value: "realistic" }]));
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "p3")
+        .field("prompt", "prompt3")
+        .field("description", "d3")
+        .field("tags", JSON.stringify([{ key_id: keyId1, value: "boy" }]));
+    });
+
+    it("全タグの候補を件数付きで取得できる", async () => {
+      const res = await request(app)
+        .get("/api/tags/suggestions")
+        .query({ type: "prompts" });
+
+      expect(res.status).toBe(200);
+      const girlTag = res.body.find((s: { value: string }) => s.value === "girl");
+      expect(girlTag.count).toBe(2);
+      const boyTag = res.body.find((s: { value: string }) => s.value === "boy");
+      expect(boyTag.count).toBe(1);
+    });
+
+    it("選択済みタグで絞り込んだ候補を取得できる", async () => {
+      const allTags = await request(app)
+        .get("/api/tags/suggestions")
+        .query({ type: "prompts" });
+      const animeValueId = allTags.body.find((s: { value: string }) => s.value === "anime").value_id;
+
+      const res = await request(app)
+        .get("/api/tags/suggestions")
+        .query({ type: "prompts", selected: String(animeValueId) });
+
+      expect(res.status).toBe(200);
+      const girlTag = res.body.find((s: { value: string }) => s.value === "girl");
+      expect(girlTag.count).toBe(1);
+      const boyTag = res.body.find((s: { value: string }) => s.value === "boy");
+      expect(boyTag).toBeUndefined();
+    });
+
+    it("不正なtypeで400を返す", async () => {
+      const res = await request(app)
+        .get("/api/tags/suggestions")
+        .query({ type: "invalid" });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("タグによるプロンプト絞り込み", () => {
+    let keyId: number;
+
+    beforeEach(async () => {
+      const k = await request(app).post("/api/tags/keys").send({ name: "style" });
+      keyId = k.body.id;
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "anime1")
+        .field("prompt", "anime prompt")
+        .field("description", "d")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "anime" }]));
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "realistic1")
+        .field("prompt", "realistic prompt")
+        .field("description", "d")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "realistic" }]));
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "notag")
+        .field("prompt", "no tag")
+        .field("description", "d");
+    });
+
+    it("tag_value_idsで絞り込める", async () => {
+      const suggestions = await request(app)
+        .get("/api/tags/suggestions")
+        .query({ type: "prompts" });
+      const animeId = suggestions.body.find((s: { value: string }) => s.value === "anime").value_id;
+
+      const res = await request(app)
+        .get("/api/prompts")
+        .query({ tag_value_ids: String(animeId) });
+
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].title).toBe("anime1");
+      expect(res.body.total).toBe(1);
+    });
+
+    it("テキスト検索とタグフィルタを組み合わせられる", async () => {
+      const suggestions = await request(app)
+        .get("/api/tags/suggestions")
+        .query({ type: "prompts" });
+      const animeId = suggestions.body.find((s: { value: string }) => s.value === "anime").value_id;
+
+      const res = await request(app)
+        .get("/api/prompts")
+        .query({ q: "anime", tag_value_ids: String(animeId) });
+
+      expect(res.body.data).toHaveLength(1);
+    });
+  });
+
   describe("DELETE /api/tags/values/:id", () => {
     it("値を削除できる", async () => {
       const keyRes = await request(app)

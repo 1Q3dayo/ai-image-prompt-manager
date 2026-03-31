@@ -250,5 +250,55 @@ export function createTagsRouter(getDb: () => DatabaseSync): Router {
     res.status(204).send();
   });
 
+  router.get("/suggestions", (req, res) => {
+    const db = getDb();
+    const type = (req.query.type as string) || "prompts";
+    const selected = (req.query.selected as string) || "";
+
+    if (type !== "prompts" && type !== "bundles") {
+      res.status(400).json({ error: "typeはpromptsまたはbundlesです" });
+      return;
+    }
+
+    const table = type === "prompts" ? "prompt_tags" : "bundle_tags";
+    const idCol = type === "prompts" ? "prompt_id" : "bundle_id";
+    const entityTable = type === "prompts" ? "prompts" : "bundles";
+
+    const selectedIds = selected
+      ? selected.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n))
+      : [];
+
+    let entityFilter = "";
+    const filterParams: number[] = [];
+
+    if (selectedIds.length > 0) {
+      const existsClauses = selectedIds.map(
+        () => `AND EXISTS (SELECT 1 FROM ${table} st WHERE st.${idCol} = e.id AND st.tag_value_id = ?)`,
+      );
+      entityFilter = existsClauses.join(" ");
+      filterParams.push(...selectedIds);
+    }
+
+    const suggestions = db
+      .prepare(
+        `SELECT tk.id as key_id, tk.name as key_name, tv.id as value_id, tv.value, COUNT(*) as count
+         FROM ${table} et
+         JOIN tag_values tv ON et.tag_value_id = tv.id
+         JOIN tag_keys tk ON tv.tag_key_id = tk.id
+         WHERE et.${idCol} IN (SELECT e.id FROM ${entityTable} e WHERE 1=1 ${entityFilter})
+         GROUP BY tv.id
+         ORDER BY tk.sort_order ASC, tk.id ASC, tv.value ASC`,
+      )
+      .all(...filterParams) as Array<{
+      key_id: number;
+      key_name: string;
+      value_id: number;
+      value: string;
+      count: number;
+    }>;
+
+    res.json(suggestions);
+  });
+
   return router;
 }

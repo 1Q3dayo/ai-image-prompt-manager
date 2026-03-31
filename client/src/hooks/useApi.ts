@@ -44,11 +44,15 @@ export async function fetchPrompts(
   q = "",
   limit = 50,
   offset = 0,
+  tagValueIds: number[] = [],
 ): Promise<PaginatedResponse<Prompt>> {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
+  for (const id of tagValueIds) {
+    params.append("tag_value_ids", String(id));
+  }
   const res = await fetch(`${BASE_URL}/prompts?${params}`);
   if (!res.ok) throw new Error("プロンプト一覧の取得に失敗しました");
   return res.json();
@@ -118,11 +122,15 @@ export async function fetchBundles(
   q = "",
   limit = 50,
   offset = 0,
+  tagValueIds: number[] = [],
 ): Promise<PaginatedResponse<BundleSummary>> {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
+  for (const id of tagValueIds) {
+    params.append("tag_value_ids", String(id));
+  }
   const res = await fetch(`${BASE_URL}/bundles?${params}`);
   if (!res.ok) throw new Error("バンドル一覧の取得に失敗しました");
   return res.json();
@@ -363,6 +371,24 @@ export async function deleteTagValue(id: number): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("タグ値の削除に失敗しました");
+}
+
+export interface TagSuggestion extends Tag {
+  count: number;
+}
+
+export async function fetchTagSuggestions(
+  type: "prompts" | "bundles",
+  selectedValueIds: number[] = [],
+): Promise<TagSuggestion[]> {
+  const params = new URLSearchParams();
+  params.set("type", type);
+  if (selectedValueIds.length > 0) {
+    params.set("selected", selectedValueIds.join(","));
+  }
+  const res = await fetch(`${BASE_URL}/tags/suggestions?${params}`);
+  if (!res.ok) throw new Error("タグ候補の取得に失敗しました");
+  return res.json();
 }
 
 export async function importDb(file: File): Promise<{ status: string }> {

@@ -16,10 +16,11 @@ export function createPromptsRouter(getDb: () => DatabaseSync): Router {
     const q = (req.query.q as string) || "";
     const limit = Math.max(1, Math.min(parseInt(req.query.limit as string) || 50, 200));
     const offset = Math.max(0, parseInt(req.query.offset as string) || 0);
+    const tagValueIds = parseTagValueIds(req.query.tag_value_ids);
 
     let result: { data: unknown[]; total: number };
-    if (q) {
-      result = searchPrompts(db, q, limit, offset);
+    if (q || tagValueIds.length > 0) {
+      result = searchPrompts(db, q, limit, offset, tagValueIds);
     } else {
       const rows = db
         .prepare(
@@ -342,12 +343,29 @@ function embedTags(
   }));
 }
 
+function parseTagValueIds(param: unknown): number[] {
+  if (!param) return [];
+  const arr = Array.isArray(param) ? param : [param];
+  return arr.map((v) => parseInt(v as string)).filter((n) => !isNaN(n));
+}
+
+function buildTagExistsClause(tagValueIds: number[], alias: string): { sql: string; params: number[] } {
+  if (tagValueIds.length === 0) return { sql: "", params: [] };
+  const clauses = tagValueIds.map(
+    () => `AND EXISTS (SELECT 1 FROM prompt_tags WHERE prompt_id = ${alias}.id AND tag_value_id = ?)`,
+  );
+  return { sql: clauses.join(" "), params: tagValueIds };
+}
+
 function searchPrompts(
   db: DatabaseSync,
   q: string,
   limit: number,
   offset: number,
+  tagValueIds: number[] = [],
 ): { data: unknown[]; total: number } {
+  const tagClause = buildTagExistsClause(tagValueIds, "p");
+
   if (q.length >= 3) {
     try {
       const escaped = q.replace(/"/g, '""');
@@ -356,24 +374,40 @@ function searchPrompts(
         .prepare(
           `SELECT p.* FROM prompts p
            JOIN prompts_fts f ON p.id = f.rowid
-           WHERE prompts_fts MATCH ?
+           WHERE prompts_fts MATCH ? ${tagClause.sql}
            ORDER BY p.updated_at DESC LIMIT ? OFFSET ?`,
         )
-        .all(ftsQuery, limit, offset);
+        .all(ftsQuery, ...tagClause.params, limit, offset);
       const totalResult = db
         .prepare(
           `SELECT COUNT(*) as count FROM prompts p
            JOIN prompts_fts f ON p.id = f.rowid
-           WHERE prompts_fts MATCH ?`,
+           WHERE prompts_fts MATCH ? ${tagClause.sql}`,
         )
-        .get(ftsQuery) as Record<string, number>;
+        .get(ftsQuery, ...tagClause.params) as Record<string, number>;
       return { data, total: totalResult.count };
     } catch {
       // FTS構文エラー時はLIKEフォールバック
     }
   }
 
-  return likeFallback(db, q, limit, offset);
+  if (q) {
+    return likeFallback(db, q, limit, offset, tagValueIds);
+  }
+
+  // タグフィルタのみ（テキスト検索なし）
+  const data = db
+    .prepare(
+      `SELECT p.* FROM prompts p WHERE 1=1 ${tagClause.sql}
+       ORDER BY p.updated_at DESC LIMIT ? OFFSET ?`,
+    )
+    .all(...tagClause.params, limit, offset);
+  const totalResult = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM prompts p WHERE 1=1 ${tagClause.sql}`,
+    )
+    .get(...tagClause.params) as Record<string, number>;
+  return { data, total: totalResult.count };
 }
 
 function likeFallback(
@@ -381,20 +415,22 @@ function likeFallback(
   q: string,
   limit: number,
   offset: number,
+  tagValueIds: number[] = [],
 ): { data: unknown[]; total: number } {
   const pattern = `%${q}%`;
+  const tagClause = buildTagExistsClause(tagValueIds, "p");
   const data = db
     .prepare(
-      `SELECT * FROM prompts
-       WHERE title LIKE ? OR prompt LIKE ? OR description LIKE ?
-       ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT p.* FROM prompts p
+       WHERE (p.title LIKE ? OR p.prompt LIKE ? OR p.description LIKE ?) ${tagClause.sql}
+       ORDER BY p.updated_at DESC LIMIT ? OFFSET ?`,
     )
-    .all(pattern, pattern, pattern, limit, offset);
+    .all(pattern, pattern, pattern, ...tagClause.params, limit, offset);
   const totalResult = db
     .prepare(
-      `SELECT COUNT(*) as count FROM prompts
-       WHERE title LIKE ? OR prompt LIKE ? OR description LIKE ?`,
+      `SELECT COUNT(*) as count FROM prompts p
+       WHERE (p.title LIKE ? OR p.prompt LIKE ? OR p.description LIKE ?) ${tagClause.sql}`,
     )
-    .get(pattern, pattern, pattern) as Record<string, number>;
+    .get(pattern, pattern, pattern, ...tagClause.params) as Record<string, number>;
   return { data, total: totalResult.count };
 }
