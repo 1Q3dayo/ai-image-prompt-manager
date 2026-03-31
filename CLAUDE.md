@@ -15,7 +15,9 @@
 - Planモードで作業する際は、各ステップで以下のフローを守る：
   1. ステップの実装を行う
   2. lintとテストを実行し、問題があれば修正する
-  3. `/codex` スキルを呼び出してレビューを受ける
+  3. レビューを受ける（大きな変更は `--background` で実行）
+     - 通常のステップ: `/codex:review`
+     - 設計判断を含むステップ（API設計・データモデル変更・アーキテクチャ変更など）: `/codex:adversarial-review`
   4. レビュー指摘があれば修正する
   5. そのステップの変更をコミットする（ステップごとに1コミット）
 
@@ -25,4 +27,10 @@
 
 - `/code-review` - コードレビューの実施
 - `/create-pr` - ghコマンドでPR作成
-- `/codex` - OpenAI Codex CLIへの相談・レビュー依頼
+
+## Plugins
+
+- `openai/codex-plugin-cc` - Codex連携プラグイン
+  - `/codex:review` - 通常のコードレビュー
+  - `/codex:adversarial-review` - 設計・判断を問うチャレンジレビュー
+  - `/codex:rescue` - Codexにコード修正・調査を委任
