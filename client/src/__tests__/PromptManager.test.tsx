@@ -21,6 +21,10 @@ vi.mock("../hooks/useApi", () => ({
   deletePrompt: vi.fn().mockResolvedValue(undefined),
   deleteBundle: vi.fn().mockResolvedValue(undefined),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
+  savePrompt: vi.fn().mockResolvedValue({ id: 1 }),
+  saveBundle: vi.fn().mockResolvedValue({ id: 1 }),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 describe("PromptManager", () => {

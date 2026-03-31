@@ -5,7 +5,9 @@ import {
   saveBundle,
   getImageUrl,
   type Bundle,
+  type Tag,
 } from "../../hooks/useApi";
+import { TagInput } from "../shared/TagInput";
 
 interface BundleEditDialogProps {
   bundleId: number;
@@ -27,6 +29,7 @@ export function BundleEditDialog({
   const [description, setDescription] = useState("");
   const [currentImagePath, setCurrentImagePath] = useState<string | null>(null);
   const [items, setItems] = useState<Bundle["items"]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [newImage, setNewImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +42,7 @@ export function BundleEditDialog({
         setDescription(data.description);
         setCurrentImagePath(data.image_path);
         setItems(data.items);
+        if (data.tags) setTags(data.tags);
         setLoading(false);
       })
       .catch(() => {
@@ -65,6 +69,9 @@ export function BundleEditDialog({
       has_break: item.has_break === 1,
     }));
 
+  const getTagsPayload = () =>
+    tags.map((t) => ({ key_id: t.key_id, value: t.value }));
+
   const handleUpdate = async () => {
     if (!validate()) return;
     setSavingAction("update");
@@ -73,6 +80,7 @@ export function BundleEditDialog({
       await updateBundle(bundleId, {
         title: title.trim(),
         description: description.trim(),
+        tags: getTagsPayload(),
         ...(newImage ? { image: newImage } : {}),
       });
       onSaved();
@@ -91,6 +99,7 @@ export function BundleEditDialog({
         title: title.trim(),
         description: description.trim(),
         items: getItemsData(),
+        tags: getTagsPayload(),
         ...(newImage ? { image: newImage } : {}),
         ...(!newImage && currentImagePath ? { copy_image_from: currentImagePath } : {}),
       });
@@ -163,6 +172,8 @@ export function BundleEditDialog({
                 data-testid="edit-bundle-description-input"
               />
             </div>
+
+            <TagInput tags={tags} onChange={setTags} />
 
             {currentImagePath && !newImage && (
               <div>

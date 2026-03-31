@@ -14,6 +14,8 @@ vi.mock("../hooks/useApi", () => ({
   fetchBundles: vi.fn().mockResolvedValue({ data: [], total: 0 }),
   fetchBundle: vi.fn().mockResolvedValue({ id: 1, items: [] }),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 function renderGenerator() {

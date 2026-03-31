@@ -12,6 +12,8 @@ vi.mock("../hooks/useApi", () => ({
   updateBundle: (...args: unknown[]) => mockUpdateBundle(...args),
   saveBundle: (...args: unknown[]) => mockSaveBundle(...args),
   getImageUrl: vi.fn((path: string) => `/api/images/${path}`),
+  fetchTagKeys: vi.fn().mockResolvedValue([]),
+  fetchTagValues: vi.fn().mockResolvedValue([]),
 }));
 
 const sampleBundle = {
@@ -125,6 +127,7 @@ describe("BundleEditDialog", () => {
     expect(mockUpdateBundle).toHaveBeenCalledWith(1, {
       title: "テストバンドル",
       description: "テスト説明",
+      tags: [],
     });
   });
 
@@ -167,6 +170,7 @@ describe("BundleEditDialog", () => {
         { title: "プロンプト1", prompt: "prompt1", has_break: false },
         { title: "プロンプト2", prompt: "prompt2", has_break: true },
       ],
+      tags: [],
       copy_image_from: "bundle.jpg",
     });
     expect(mockUpdateBundle).not.toHaveBeenCalled();

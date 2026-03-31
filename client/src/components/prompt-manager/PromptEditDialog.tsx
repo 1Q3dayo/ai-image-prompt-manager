@@ -5,7 +5,9 @@ import {
   savePrompt,
   getImageUrl,
   type Prompt,
+  type Tag,
 } from "../../hooks/useApi";
+import { TagInput } from "../shared/TagInput";
 
 interface PromptEditDialogProps {
   promptId: number;
@@ -29,6 +31,7 @@ export function PromptEditDialog({
   const [description, setDescription] = useState("");
   const [currentImagePath, setCurrentImagePath] = useState<string | null>(null);
   const [newImage, setNewImage] = useState<File | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export function PromptEditDialog({
         setHasBreak(data.has_break === 1);
         setDescription(data.description);
         setCurrentImagePath(data.image_path);
+        if (data.tags) setTags(data.tags);
         setLoading(false);
       })
       .catch(() => {
@@ -61,11 +65,15 @@ export function PromptEditDialog({
     return true;
   };
 
+  const getTagsPayload = () =>
+    tags.map((t) => ({ key_id: t.key_id, value: t.value }));
+
   const getData = () => ({
     title: title.trim(),
     prompt: prompt.trim(),
     has_break: hasBreak,
     description: description.trim(),
+    tags: getTagsPayload(),
     ...(newImage ? { image: newImage } : {}),
   });
 
@@ -194,6 +202,8 @@ export function PromptEditDialog({
                 data-testid="edit-description-input"
               />
             </div>
+
+            <TagInput tags={tags} onChange={setTags} />
 
             {currentImagePath && !newImage && (
               <div>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { saveBundle, updateBundle, fetchBundle } from "../../hooks/useApi";
+import { saveBundle, updateBundle, fetchBundle, type Tag } from "../../hooks/useApi";
+import { TagInput } from "../shared/TagInput";
 import type { PromptSet } from "../../types";
 
 interface BundleSaveDialogProps {
@@ -17,8 +18,10 @@ export function BundleSaveDialog({
 }: BundleSaveDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<Tag[]>([]);
   const [image, setImage] = useState<File | null>(null);
   const [sourceImagePath, setSourceImagePath] = useState<string | null>(null);
+  const [sourceLoaded, setSourceLoaded] = useState(false);
   const [savingAction, setSavingAction] = useState<"update" | "new" | null>(null);
   const saving = savingAction !== null;
   const [error, setError] = useState("");
@@ -27,11 +30,14 @@ export function BundleSaveDialog({
   useEffect(() => {
     if (!open || !sourceBundleId) return;
     let cancelled = false;
+    setSourceLoaded(false);
     fetchBundle(sourceBundleId).then((data) => {
       if (cancelled) return;
       if (!title) setTitle(data.title);
       if (!description) setDescription(data.description);
+      if (data.tags && tags.length === 0) setTags(data.tags);
       setSourceImagePath(data.image_path);
+      setSourceLoaded(true);
     }).catch(() => {});
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,6 +54,9 @@ export function BundleSaveDialog({
         has_break: s.hasBreak,
       }));
 
+  const getTagsPayload = () =>
+    tags.map((t) => ({ key_id: t.key_id, value: t.value }));
+
   const validate = () => {
     if (!title.trim()) { setError("タイトルは必須です"); return false; }
     if (!description.trim()) { setError("説明文は必須です"); return false; }
@@ -63,6 +72,7 @@ export function BundleSaveDialog({
         title: title.trim(),
         description: description.trim(),
         items: getItemsData(),
+        tags: getTagsPayload(),
         image: image ?? undefined,
         ...(!image && sourceImagePath ? { copy_image_from: sourceImagePath } : {}),
       });
@@ -84,6 +94,7 @@ export function BundleSaveDialog({
         title: title.trim(),
         description: description.trim(),
         items: getItemsData(),
+        tags: getTagsPayload(),
         ...(image ? { image } : {}),
       });
       resetAndClose();
@@ -97,8 +108,10 @@ export function BundleSaveDialog({
   const resetAndClose = () => {
     setTitle("");
     setDescription("");
+    setTags([]);
     setImage(null);
     setSourceImagePath(null);
+    setSourceLoaded(false);
     setError("");
     onClose();
   };
@@ -156,6 +169,8 @@ export function BundleSaveDialog({
             </p>
           </div>
 
+          <TagInput tags={tags} onChange={setTags} />
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               サンプル画像（任意）
@@ -187,7 +202,7 @@ export function BundleSaveDialog({
           {sourceBundleId && (
             <button
               onClick={handleUpdate}
-              disabled={saving}
+              disabled={saving || !sourceLoaded}
               className="px-4 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50"
               data-testid="bundle-save-overwrite"
             >
