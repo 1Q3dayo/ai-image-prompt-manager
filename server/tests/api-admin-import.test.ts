@@ -156,6 +156,95 @@ describe("Admin Import API", () => {
       expect(isAvifFile(path.join(imagesDir, files[0]))).toBe(true);
     });
 
+    it("version 2のタグ付きデータをインポートできる（replace）", async () => {
+      const exportData = {
+        version: 2,
+        tag_keys: [
+          { name: "character", sort_order: 0, values: ["girl", "boy", "unused"] },
+        ],
+        prompts: [
+          {
+            title: "タグ付き",
+            prompt: "tagged",
+            has_break: 0,
+            description: "説明",
+            tags: [{ key: "character", value: "girl" }],
+          },
+        ],
+        bundles: [
+          {
+            title: "バンドル",
+            description: "説明",
+            items: [],
+            tags: [{ key: "character", value: "boy" }],
+          },
+        ],
+      };
+
+      const res = await request(app)
+        .post("/api/admin/import/json")
+        .field("mode", "replace")
+        .attach("file", Buffer.from(JSON.stringify(exportData)), "export.json");
+
+      expect(res.status).toBe(200);
+
+      const keys = await request(app).get("/api/tags/keys?includeValues=true");
+      expect(keys.body).toHaveLength(1);
+      expect(keys.body[0].name).toBe("character");
+      expect(keys.body[0].values).toHaveLength(3);
+
+      const prompts = await request(app).get("/api/prompts");
+      expect(prompts.body.data[0].tags).toHaveLength(1);
+      expect(prompts.body.data[0].tags[0].value).toBe("girl");
+
+      const bundles = await request(app).get("/api/bundles");
+      expect(bundles.body.data[0].tags).toHaveLength(1);
+      expect(bundles.body.data[0].tags[0].value).toBe("boy");
+    });
+
+    it("version 1のデータはタグなしでインポートできる（後方互換）", async () => {
+      const exportData = {
+        version: 1,
+        prompts: [
+          { title: "v1", prompt: "old", has_break: 0, description: "旧形式" },
+        ],
+        bundles: [],
+      };
+
+      const res = await request(app)
+        .post("/api/admin/import/json")
+        .field("mode", "replace")
+        .attach("file", Buffer.from(JSON.stringify(exportData)), "export.json");
+
+      expect(res.status).toBe(200);
+      expect(res.body.imported.prompts).toBe(1);
+    });
+
+    it("エクスポート→インポートのround-tripでタグが保持される", async () => {
+      await request(app).post("/api/tags/keys").send({ name: "style" });
+      const keyRes = await request(app).get("/api/tags/keys");
+      const keyId = keyRes.body[0].id;
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "roundtrip")
+        .field("prompt", "test")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: keyId, value: "anime" }]));
+
+      const exportRes = await request(app).get("/api/admin/export/json");
+
+      await request(app)
+        .post("/api/admin/import/json")
+        .field("mode", "replace")
+        .attach("file", Buffer.from(JSON.stringify(exportRes.body)), "export.json");
+
+      const prompts = await request(app).get("/api/prompts");
+      expect(prompts.body.data[0].tags).toHaveLength(1);
+      expect(prompts.body.data[0].tags[0].key_name).toBe("style");
+      expect(prompts.body.data[0].tags[0].value).toBe("anime");
+    });
+
     it("ファイルなしでエラーになる", async () => {
       const res = await request(app).post("/api/admin/import/json");
       expect(res.status).toBe(400);

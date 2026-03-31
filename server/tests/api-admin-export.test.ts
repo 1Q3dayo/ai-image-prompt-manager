@@ -30,8 +30,9 @@ describe("Admin Export API", () => {
     it("空DBでエクスポートできる", async () => {
       const res = await request(app).get("/api/admin/export/json");
       expect(res.status).toBe(200);
-      expect(res.body.version).toBe(1);
+      expect(res.body.version).toBe(2);
       expect(res.body.exportedAt).toBeTruthy();
+      expect(res.body.tag_keys).toEqual([]);
       expect(res.body.prompts).toEqual([]);
       expect(res.body.bundles).toEqual([]);
     });
@@ -110,6 +111,29 @@ describe("Admin Export API", () => {
         "/api/admin/export/json?includeImages=false",
       );
       expect(res.body.prompts[0]).not.toHaveProperty("image_data");
+    });
+
+    it("タグ付きデータがエクスポートされる", async () => {
+      await request(app).post("/api/tags/keys").send({ name: "character" });
+      await request(app).post("/api/tags/keys/1/values").send({ value: "girl" });
+      await request(app).post("/api/tags/keys/1/values").send({ value: "unused_value" });
+
+      await request(app)
+        .post("/api/prompts")
+        .field("title", "タグ付き")
+        .field("prompt", "tagged")
+        .field("description", "説明")
+        .field("tags", JSON.stringify([{ key_id: 1, value: "girl" }]));
+
+      const res = await request(app).get("/api/admin/export/json");
+      expect(res.body.version).toBe(2);
+      expect(res.body.tag_keys).toHaveLength(1);
+      expect(res.body.tag_keys[0].name).toBe("character");
+      expect(res.body.tag_keys[0].values).toContain("girl");
+      expect(res.body.tag_keys[0].values).toContain("unused_value");
+      expect(res.body.prompts[0].tags).toHaveLength(1);
+      expect(res.body.prompts[0].tags[0].key).toBe("character");
+      expect(res.body.prompts[0].tags[0].value).toBe("girl");
     });
   });
 
