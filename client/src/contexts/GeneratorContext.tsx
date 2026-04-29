@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { usePromptSets } from "../hooks/usePromptSets";
 import type { PromptSet } from "../types";
 import type { Prompt, Bundle } from "../hooks/useApi";
+import { generateId } from "../utils/id";
 
 interface GeneratorContextValue {
   sets: PromptSet[];
@@ -42,7 +43,7 @@ export function GeneratorProvider({ children }: { children: ReactNode }) {
   const appendPromptToSets = useCallback(
     (prompt: Prompt) => {
       appendSet({
-        id: crypto.randomUUID(),
+        id: generateId(),
         title: prompt.title,
         prompt: prompt.prompt,
         hasBreak: prompt.has_break === 1,
@@ -55,7 +56,7 @@ export function GeneratorProvider({ children }: { children: ReactNode }) {
   const replaceSetsFromBundle = useCallback(
     (bundle: Bundle) => {
       const newSets: PromptSet[] = (bundle.items ?? []).map((item) => ({
-        id: crypto.randomUUID(),
+        id: generateId(),
         title: item.title,
         prompt: item.prompt,
         hasBreak: item.has_break === 1,
