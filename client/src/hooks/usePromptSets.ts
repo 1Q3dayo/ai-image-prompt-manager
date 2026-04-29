@@ -1,9 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import type { PromptSet } from "../types";
-
-function generateId(): string {
-  return crypto.randomUUID();
-}
+import { generateId } from "../utils/id";
 
 function createEmptySet(): PromptSet {
   return { id: generateId(), title: "", prompt: "", hasBreak: false };
